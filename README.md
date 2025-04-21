@@ -51,7 +51,7 @@ FFCS is a comprehensive web application designed to help VIT students plan their
 ### 🔐 Login
 
 - Use the test credentials provided on the login screen
-- 📧 Email: mohammedaneez.r2022@vitstudent.ac.in
+- 📧 Email:
 - 🔑 Password: Password
 
 ### 📅 Creating a Timetable Plan
