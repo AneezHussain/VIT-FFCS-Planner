@@ -1,3 +1,108 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900;
+  }
+
+  body.dark {
+    @apply bg-gray-900 text-gray-200;
+  }
+}
+
+@layer components {
+  /* Modal styles */
+  .modal-content {
+    @apply bg-white text-gray-900 border border-gray-200 shadow-lg rounded-lg;
+  }
+  
+  .dark .modal-content {
+    @apply bg-gray-800 text-gray-200 border-gray-700;
+  }
+  
+  .modal-header {
+    @apply bg-gray-50 text-gray-900 border-b border-gray-200;
+  }
+  
+  .dark .modal-header {
+    @apply bg-gray-800 text-gray-200 border-gray-700;
+  }
+  
+  .modal-footer {
+    @apply bg-gray-50 text-gray-900 border-t border-gray-200;
+  }
+  
+  .dark .modal-footer {
+    @apply bg-gray-800 text-gray-200 border-gray-700;
+  }
+  
+  /* Button styles */
+  .btn-primary {
+    @apply bg-primary-500 text-white hover:bg-primary-600;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-900 hover:bg-gray-300;
+  }
+  
+  .dark .btn-secondary {
+    @apply bg-gray-700 text-gray-200 hover:bg-gray-600;
+  }
+  
+  .btn-danger {
+    @apply bg-system-red text-white hover:bg-red-600;
+  }
+  
+  /* Form input styles */
+  .form-input {
+    @apply bg-white text-gray-900 border border-gray-300;
+  }
+  
+  .dark .form-input {
+    @apply bg-gray-700 text-gray-200 border-gray-600;
+  }
+  
+  /* Card styles */
+  .card {
+    @apply bg-white text-gray-900 border border-gray-200 shadow rounded-lg;
+  }
+  
+  .dark .card {
+    @apply bg-gray-800 text-gray-200 border-gray-700;
+  }
+  
+  /* Custom classes for theme colors */
+  .table-cell-course-red {
+    @apply bg-system-red/20 text-black dark:text-system-red font-semibold;
+  }
+  
+  .table-cell-course-blue {
+    @apply bg-system-blue/20 text-black dark:text-system-blue font-semibold;
+  }
+  
+  .table-cell-course-green {
+    @apply bg-system-green/20 text-black dark:text-system-green font-semibold;
+  }
+  
+  .table-cell-course-orange {
+    @apply bg-system-orange/20 text-black dark:text-system-orange font-semibold;
+  }
+  
+  .table-cell-course-purple {
+    @apply bg-system-purple/20 text-black dark:text-system-purple font-semibold;
+  }
+  
+  .table-cell-course-teal {
+    @apply bg-system-teal/20 text-black dark:text-system-teal font-semibold;
+  }
+  
+  .table-cell-course-yellow {
+    @apply bg-system-yellow/20 text-black dark:text-system-yellow font-semibold;
+  }
+  
+  .table-cell-course-primary {
+    @apply bg-primary-500/20 text-black dark:text-primary-500 font-semibold;
+  }
+} 

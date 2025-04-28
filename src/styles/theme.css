@@ -1,0 +1,23 @@
+/* Theme variables for light and dark mode */
+
+/* Modal styling */
+.modal-content {
+  @apply bg-white rounded-xl;
+}
+
+.modal-header {
+  @apply border-b border-gray-100;
+}
+
+.dark .modal-content {
+  @apply bg-gray-900 text-white;
+}
+
+.dark .modal-header {
+  @apply border-b border-gray-700;
+}
+
+/* Utility classes for system color transparency */
+.bg-system-green\/10 {
+  @apply bg-system-green bg-opacity-10;
+} 

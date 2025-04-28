@@ -8,6 +8,7 @@ FFCS is a comprehensive web application designed to help VIT students plan their
 - 📚 **Course Selection**: Add courses with specific time slots and credit information
 - 👨‍🏫 **Faculty Preferences**: Specify and manage faculty preferences for each course
 - 💾 **Import/Export Data**: Save your timetable planning progress by exporting to CSV and importing it later
+- ☁️ **Google Drive Integration**: Sync your course data with Google Drive for cross-device access
 - 🎓 **Semester Planning**: Plan multiple semesters with morning or evening slot preferences
 - ⚠️ **Slot Conflict Detection**: Automatic detection of conflicting time slots when selecting courses
 - 📱 **Responsive Design**: Works on desktop and mobile devices
@@ -46,6 +47,16 @@ FFCS is a comprehensive web application designed to help VIT students plan their
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser to view the application
 
+## 🔄 Google Drive Integration
+
+The application comes with Google Drive integration already set up. You can use it to:
+
+- Backup your course data to Google Drive
+- Access your timetable from any device where you log in with your Google account
+- Keep your planning progress safe in the cloud
+
+All your course data is stored in a single file in your Google Drive, making it easy to manage and sync across devices.
+
 ## 📖 Usage Guide
 
 ### 🔐 Login
@@ -71,6 +82,10 @@ FFCS is a comprehensive web application designed to help VIT students plan their
 - 📤 Use the Export button to save your current timetable configuration
 - 📥 Import previously saved configurations using the Import button
 - 🗂️ Drag and drop CSV files to quickly import data
+- ☁️ Use the Google Drive button to:
+  - Connect your Google account
+  - Backup your timetable data to Google Drive
+  - Load saved timetables from any device
 
 ## 👥 Contributing
 

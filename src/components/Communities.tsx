@@ -50,34 +50,32 @@ const Communities: React.FC = () => {
       </div>
 
       {/* Communities Content */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {communityGroups.map((group) => (
-            <div 
-              key={group.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">{group.name}</h3>
-                  <p className="text-sm text-gray-600 mt-2">
-                    {group.description}
-                  </p>
-                  <div className="mt-4 flex items-center text-sm text-gray-500">
-                    <span>{group.members} members</span>
-                  </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {communityGroups.map((group) => (
+          <div 
+            key={group.id}
+            className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">{group.name}</h3>
+                <p className="text-sm text-gray-600 mt-2">
+                  {group.description}
+                </p>
+                <div className="mt-4 flex items-center text-sm text-gray-500">
+                  <span>{group.members} members</span>
                 </div>
-                <button
-                  onClick={() => handleJoinGroup(group.link)}
-                  className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
-                >
-                  <FaWhatsapp className="text-xl" />
-                  <span>Join</span>
-                </button>
               </div>
+              <button
+                onClick={() => handleJoinGroup(group.link)}
+                className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+              >
+                <FaWhatsapp className="text-xl" />
+                <span>Join</span>
+              </button>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );

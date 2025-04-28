@@ -50,8 +50,22 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
     }
   }, [showInput]);
 
+  // Debug log for initial faculty preferences
+  useEffect(() => {
+    if (isOpen) {
+      console.log("Initial faculty preferences:", initialFacultyPreferences);
+    }
+  }, [isOpen, initialFacultyPreferences]);
+
+  // Debug state changes
+  useEffect(() => {
+    console.log("Current facultyPreferences:", facultyPreferences);
+    console.log("Current facultyName:", facultyName);
+  }, [facultyPreferences, facultyName]);
+
   const handleAddFaculty = () => {
     if (facultyName.trim()) {
+      console.log("Adding faculty:", facultyName.trim());
       setFacultyPreferences([...facultyPreferences, facultyName.trim()]);
       setFacultyName('');
       setShowInput(true);
@@ -90,13 +104,16 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
     if (facultyName.trim()) {
       // Add the current faculty name to the list
       const updatedPreferences = [...facultyPreferences, facultyName.trim()];
+      console.log("Submitting with typed faculty added:", updatedPreferences);
       // Submit with the updated list that includes the currently typed faculty
       onSubmit(updatedPreferences);
     } else if (facultyPreferences.length > 0) {
       // Submit with existing faculty preferences
+      console.log("Submitting existing faculty:", facultyPreferences);
       onSubmit(facultyPreferences);
     } else {
       // No faculty preferences
+      console.log("Submitting with no faculty");
       onSubmit([]);
     }
   };
@@ -198,6 +215,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                   }}
                   className="w-full py-3 px-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                   placeholder="Enter faculty name"
+                  autoComplete="off"
                 />
               </div>
             </div>

@@ -1,9 +1,14 @@
 ﻿import React from 'react';
 
+// Define Course interface directly within the component
 interface Course {
   name: string;
   slots: string[];
   credits: number;
+  facultyPreferences?: string[];
+  code?: string;
+  faculty?: string;
+  venue?: string;
 }
 
 interface SlotObject {
@@ -20,9 +25,10 @@ interface DayRow {
 
 interface TimeTableProps {
   courses?: Course[];
+  darkMode?: boolean;
 }
 
-const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
+const TimeTable: React.FC<TimeTableProps> = ({ courses = [], darkMode = false }) => {
   const dayRows: DayRow[] = [
     {
       day: 'MON',
@@ -68,20 +74,20 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
     return null;
   };
 
-  // Get color class based on course index
+  // Get color class based on course index using the custom CSS classes
   const getColorClass = (index: number): string => {
-    const bgColors = [
-      'bg-red-100', 'bg-blue-100', 'bg-green-100', 'bg-yellow-100',
-      'bg-purple-100', 'bg-pink-100', 'bg-indigo-100', 'bg-orange-100',
-      'bg-teal-100', 'bg-cyan-100', 'bg-lime-100', 'bg-amber-100'
-    ];
-    const textColors = [
-      'text-red-800', 'text-blue-800', 'text-green-800', 'text-yellow-800',
-      'text-purple-800', 'text-pink-800', 'text-indigo-800', 'text-orange-800',
-      'text-teal-800', 'text-cyan-800', 'text-lime-800', 'text-amber-800'
+    const colorClasses = [
+      'table-cell-course-red',
+      'table-cell-course-blue',
+      'table-cell-course-green',
+      'table-cell-course-orange',
+      'table-cell-course-purple',
+      'table-cell-course-teal',
+      'table-cell-course-yellow',
+      'table-cell-course-primary'
     ];
     
-    return `${bgColors[index % 12]} ${textColors[index % 12]}`;
+    return colorClasses[index % 8];
   };
 
   // Create theory and lab time arrays without lunch row
@@ -115,17 +121,24 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
     "06:50PM\nto\n07:30PM"
   ];
 
+  const cellStyle = {
+    width: '80px',
+    height: '80px',
+    minWidth: '80px',
+    minHeight: '80px'
+  };
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
-      <table className="min-w-full bg-white">
-        <tbody className="divide-y divide-gray-200">
+    <div className={`overflow-x-auto rounded-xl border ${darkMode ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+      <table className={`min-w-full table-fixed ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <tbody className={`divide-y ${darkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
           {/* Theory Hours Row */}
-          <tr className="bg-gray-50/50">
-            <td className="px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">
+          <tr className={darkMode ? 'bg-gray-800/50' : 'bg-gray-50/50'}>
+            <td className={`px-4 py-3 text-sm font-medium border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={{ width: '80px' }}>
               THEORY<br />HOURS
             </td>
             {theoryTimes.slice(0, 6).map((time, index) => (
-              <td key={index} className="px-4 py-3 text-xs font-semibold text-center border-r border-gray-200 text-gray-600">
+              <td key={index} className={`px-4 py-3 text-xs font-semibold text-center border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={cellStyle}>
                 {time.split("\n").map((t, i) => (
                   <React.Fragment key={i}>
                     {t}
@@ -138,19 +151,20 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
             {/* Lunch column - appears only once */}
             <td 
               rowSpan={7} 
-              className="bg-gray-100/80 text-gray-700 font-semibold text-center align-middle border-r border-gray-200"
+              className={`font-semibold text-center align-middle border-r ${darkMode ? 'bg-gray-700/80 text-gray-300 border-gray-700' : 'bg-gray-100/80 text-gray-900 border-gray-200'}`}
               style={{
                 writingMode: 'vertical-rl',
                 textOrientation: 'mixed',
                 transform: 'rotate(180deg)',
-                minWidth: '3rem',
+                width: '40px',
+                minWidth: '40px'
               }}
             >
               LUNCH
             </td>
 
             {theoryTimes.slice(6).map((time, index) => (
-              <td key={index + 6} className="px-4 py-3 text-xs font-semibold text-center border-r border-gray-200 text-gray-600">
+              <td key={index + 6} className={`px-4 py-3 text-xs font-semibold text-center border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={cellStyle}>
                 {time.split("\n").map((t, i) => (
                   <React.Fragment key={i}>
                     {t}
@@ -162,12 +176,12 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
           </tr>
 
           {/* Lab Hours Row */}
-          <tr>
-            <td className="px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">
+          <tr className={darkMode ? 'bg-gray-800' : 'bg-white'}>
+            <td className={`px-4 py-3 text-sm font-medium border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={{ width: '80px' }}>
               LAB<br />HOURS
             </td>
             {labTimes.slice(0, 6).map((time, index) => (
-              <td key={index} className="px-4 py-3 text-xs font-semibold text-center border-r border-gray-200 text-gray-600">
+              <td key={index} className={`px-4 py-3 text-xs font-semibold text-center border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={cellStyle}>
                 {time.split("\n").map((t, i) => (
                   <React.Fragment key={i}>
                     {t}
@@ -180,7 +194,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
             {/* Lunch column is handled by rowSpan from Theory row */}
 
             {labTimes.slice(6).map((time, index) => (
-              <td key={index + 6} className="px-4 py-3 text-xs font-semibold text-center border-r border-gray-200 text-gray-600">
+              <td key={index + 6} className={`px-4 py-3 text-xs font-semibold text-center border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={cellStyle}>
                 {time.split("\n").map((t, i) => (
                   <React.Fragment key={i}>
                     {t}
@@ -193,8 +207,8 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
 
           {/* Days and Periods */}
           {dayRows.map(({ day, slots }) => (
-            <tr key={day} className="hover:bg-gray-50/50 transition-colors">
-              <td className="px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">
+            <tr key={day} className={`transition-colors ${darkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50/50'}`}>
+              <td className={`px-4 py-3 text-sm font-medium border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={{ width: '80px' }}>
                 {day}
               </td>
               
@@ -205,9 +219,10 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
                     <td 
                       key={index} 
                       colSpan={slot.colspan}
-                      className="px-4 py-3 text-xs text-center border-r border-gray-200"
+                      className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
+                      style={{ height: '80px' }}
                     >
-                      <div className="text-red-600 font-medium">
+                      <div className={darkMode ? 'text-red-400 font-medium' : 'text-system-red font-medium'}>
                         {slot.content}
                       </div>
                     </td>
@@ -218,18 +233,19 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
                 const courseInfo = slot ? findCourseForSlot(slot) : null;
                 
                 return (
-                  <td key={index} className="px-4 py-3 text-xs text-center border-r border-gray-200">
-                    <div className={`rounded-lg p-2 transition-colors flex flex-col items-center justify-center 
-                      ${courseInfo ? getColorClass(courseInfo.index) : 'hover:bg-blue-50/50'}`}>
-                      {courseInfo ? (
-                        <>
-                          <div className="font-bold">{getCourseInitials(courseInfo.course.name)}</div>
-                          <div className="text-xs mt-1 opacity-80">{slot}</div>
-                        </>
-                      ) : (
-                        <div>{slot}</div>
-                      )}
-                    </div>
+                  <td 
+                    key={index} 
+                    className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${courseInfo ? getColorClass(courseInfo.index) : ''}`}
+                    style={cellStyle}
+                  >
+                    {courseInfo ? (
+                      <div className="flex flex-col items-center justify-center h-full w-full">
+                        <div className="font-bold">{getCourseInitials(courseInfo.course.name)}</div>
+                        <div className="text-xs mt-1">{slot}</div>
+                      </div>
+                    ) : (
+                      <div className={darkMode ? 'text-gray-500' : 'text-gray-600'}>{slot}</div>
+                    )}
                   </td>
                 );
               })}
@@ -243,9 +259,10 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
                     <td 
                       key={index + 6} 
                       colSpan={slot.colspan}
-                      className="px-4 py-3 text-xs text-center border-r border-gray-200"
+                      className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
+                      style={{ height: '80px' }}
                     >
-                      <div className="text-red-600 font-medium">
+                      <div className={darkMode ? 'text-red-400 font-medium' : 'text-system-red font-medium'}>
                         {slot.content}
                       </div>
                     </td>
@@ -256,18 +273,19 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [] }) => {
                 const courseInfo = slot ? findCourseForSlot(slot) : null;
                 
                 return (
-                  <td key={index + 6} className="px-4 py-3 text-xs text-center border-r border-gray-200">
-                    <div className={`rounded-lg p-2 transition-colors flex flex-col items-center justify-center 
-                      ${courseInfo ? getColorClass(courseInfo.index) : 'hover:bg-blue-50/50'}`}>
-                      {courseInfo ? (
-                        <>
-                          <div className="font-bold">{getCourseInitials(courseInfo.course.name)}</div>
-                          <div className="text-xs mt-1 opacity-80">{slot}</div>
-                        </>
-                      ) : (
-                        <div>{slot}</div>
-                      )}
-                    </div>
+                  <td 
+                    key={index + 6} 
+                    className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${courseInfo ? getColorClass(courseInfo.index) : ''}`}
+                    style={cellStyle}
+                  >
+                    {courseInfo ? (
+                      <div className="flex flex-col items-center justify-center h-full w-full">
+                        <div className="font-bold">{getCourseInitials(courseInfo.course.name)}</div>
+                        <div className="text-xs mt-1">{slot}</div>
+                      </div>
+                    ) : (
+                      <div className={darkMode ? 'text-gray-500' : 'text-gray-600'}>{slot}</div>
+                    )}
                   </td>
                 );
               })}
