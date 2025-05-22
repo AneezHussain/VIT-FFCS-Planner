@@ -98,16 +98,31 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
           </button>
         </div>
 
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2 text-center">{labCourseName} Details</h2>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2 text-center">Lab Slots for "{labCourseName}"</h2>
         
-        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-          <div className="text-sm text-gray-600">
-            <p>Associated Theory Slot(s): {theorySlot}</p>
-            <p>Lab Credits: <strong>1</strong></p>
-          </div>
-        </div>
-
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 px-2">Assign Lab Slots per Faculty:</h3>
+        <p className="text-center mb-8 text-gray-600 flex items-center justify-center gap-3">
+          Selected slot: <span className={`
+            inline-block px-3 py-1 text-sm font-medium rounded-md
+            ${[
+              'bg-red-50 text-red-700',
+              'bg-blue-50 text-blue-700',
+              'bg-green-50 text-green-700',
+              'bg-yellow-50 text-yellow-700',
+              'bg-purple-50 text-purple-700',
+              'bg-pink-50 text-pink-700',
+              'bg-indigo-50 text-indigo-700',
+              'bg-orange-50 text-orange-700',
+              'bg-teal-50 text-teal-700',
+              'bg-cyan-50 text-cyan-700',
+              'bg-lime-50 text-lime-700',
+              'bg-amber-50 text-amber-700'
+            ][Math.abs(labCourseName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 12]
+          }`}
+          >
+            {theorySlot}
+          </span>
+        </p>
+        
         {facultyPreferences && facultyPreferences.length > 0 ? (
           <div className="mb-6 px-2 space-y-3">
             {facultyPreferences.map((faculty, index) => {
