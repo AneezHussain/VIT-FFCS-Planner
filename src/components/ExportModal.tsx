@@ -23,6 +23,7 @@ const ExportModal: React.FC<ExportModalProps> = ({
   const [isSharing, setIsSharing] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, right: 0 });
+  const [showCopied, setShowCopied] = useState(false);
 
   // Calculate position based on trigger button location
   useEffect(() => {
@@ -58,6 +59,15 @@ const ExportModal: React.FC<ExportModalProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose, triggerRef]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

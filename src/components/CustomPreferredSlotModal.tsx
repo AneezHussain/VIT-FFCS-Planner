@@ -5,9 +5,22 @@ import FacultyPreferenceModal from './FacultyPreferenceModal';
 interface CustomPreferredSlotModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { courseName: string; selectedSlots: string[]; credits: number; facultyPreferences?: string[] }) => void;
+  onSubmit: (data: { 
+    courseName: string; 
+    selectedSlots: string[]; 
+    credits: number; 
+    facultyPreferences?: string[]; 
+    includeLabCourse?: boolean;
+    facultyLabAssignments?: Map<string, string[]>;
+  }) => void;
   existingSlots?: string[];
-  editingCourse?: { name: string; slots: string[]; credits: number; facultyPreferences?: string[] };
+  editingCourse?: { 
+    name: string; 
+    slots: string[]; 
+    credits: number; 
+    facultyPreferences?: string[]; 
+    facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>;
+  };
   onTabChange?: (tab: 'theory-morning' | 'theory-evening' | 'lab-morning' | 'lab-evening') => void;
   activeTab?: 'theory-morning' | 'theory-evening' | 'lab-morning' | 'lab-evening';
 }
@@ -28,6 +41,15 @@ const CustomPreferredSlotModal: React.FC<CustomPreferredSlotModalProps> = ({
   const [localActiveTab, setLocalActiveTab] = useState<'theory-morning' | 'theory-evening' | 'lab-morning' | 'lab-evening'>('theory-morning');
   const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
   const [tempCourseData, setTempCourseData] = useState<{ courseName: string; selectedSlots: string[]; credits: number } | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
 
   // Use either external or local active tab
   const activeTab = externalActiveTab || localActiveTab;
@@ -136,27 +158,38 @@ const CustomPreferredSlotModal: React.FC<CustomPreferredSlotModalProps> = ({
 
   // Check if a slot is already taken or has a theory-lab conflict
   const isSlotTaken = (slot: string) => {
-    // If we're editing a course, don't consider its own slots as taken
+    // If we're editing a course, don't consider its own slots (or their conflicts) as taken by this course
     if (editingCourse && editingCourse.slots.includes(slot)) {
       return false;
     }
 
-    // Check if the slot is already taken by another course
+    // Check direct occupation
     if (existingSlots.includes(slot)) {
       return true;
     }
 
-    // Check if any conflicting slot is already taken or selected
     const conflictingSlots = slotConflictsMap.get(slot) || [];
-    for (const conflictSlot of conflictingSlots) {
-      // Check if a conflicting slot is already selected in this course
-      if (selectedSlots.includes(conflictSlot) && !(editingCourse && editingCourse.slots.includes(conflictSlot))) {
-        return true;
-      }
 
-      // Check if a conflicting slot is already taken in other courses
-      if (existingSlots.includes(conflictSlot)) {
-        return true;
+    // Check if any conflicting slot is already taken by *another* course
+    for (const conflict of conflictingSlots) {
+      if (existingSlots.includes(conflict)) {
+        // If editing, ensure the conflict isn't from the course being edited itself.
+        if (editingCourse && editingCourse.slots.includes(conflict)) {
+          // This conflict is part of the course being edited, so it doesn't make 'slot' unavailable due to external factors.
+        } else {
+          return true; // Conflicting slot is taken by an external course
+        }
+      }
+    }
+    
+    // Check if any conflicting slot is *currently selected in this modal*
+    for (const conflict of conflictingSlots) {
+      if (selectedSlots.includes(conflict)) {
+        if (editingCourse && editingCourse.slots.includes(slot) && editingCourse.slots.includes(conflict)) {
+            // This specific conflict was part of the original course.
+        } else {
+            return true; // New selection 'conflict' makes 'slot' unavailable
+        }
       }
     }
     
@@ -177,15 +210,19 @@ const CustomPreferredSlotModal: React.FC<CustomPreferredSlotModalProps> = ({
   };
 
   // Handle faculty preference submission
-  const handleFacultyPreferenceSubmit = (facultyPreferences: string[]) => {
-    if (tempCourseData) {
-      // Submit with faculty preferences
+  const handleFacultyPreferenceSubmit = (
+    facultyPreferencesFromModal: string[], 
+    includeLabCourse?: boolean, 
+    facultyLabAssignmentsFromModal?: Map<string, string[]>
+  ) => {
+    if (tempCourseData) { 
       onSubmit({
         ...tempCourseData,
-        facultyPreferences
+        facultyPreferences: facultyPreferencesFromModal,
+        includeLabCourse: includeLabCourse,
+        facultyLabAssignments: facultyLabAssignmentsFromModal
       });
       
-      // Reset states and close modals
       setTempCourseData(null);
       setIsFacultyModalOpen(false);
       onClose();
@@ -201,7 +238,8 @@ const CustomPreferredSlotModal: React.FC<CustomPreferredSlotModalProps> = ({
         courseName,
         selectedSlots,
         credits,
-        facultyPreferences: editingCourse?.facultyPreferences || []
+        facultyPreferences: editingCourse?.facultyPreferences || [],
+        includeLabCourse: false
       });
       
       // Close modal
@@ -251,7 +289,7 @@ const CustomPreferredSlotModal: React.FC<CustomPreferredSlotModalProps> = ({
   return (
     <>
       <div className={`fixed inset-0 flex items-center justify-center z-50 ${isFacultyModalOpen ? 'hidden' : ''}`}>
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm" onClick={handleCloseModal}></div>
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm"></div>
         <div className="bg-white rounded-2xl p-6 w-[800px] max-h-[90vh] overflow-y-auto z-10 relative">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold text-gray-900">Enter Course Details</h2>
@@ -465,7 +503,9 @@ const CustomPreferredSlotModal: React.FC<CustomPreferredSlotModalProps> = ({
           onClose={handleFacultyModalClose}
           onSubmit={handleFacultyPreferenceSubmit}
           courseName={`${tempCourseData.courseName} ${tempCourseData.selectedSlots.join('+')}`}
-          initialFacultyPreferences={editingCourse?.facultyPreferences || []}
+          initialFacultyPreferences={editingCourse ? editingCourse.facultyPreferences : []}
+          allCurrentlyUsedSlots={existingSlots}
+          slotConflictPairs={slotConflictPairs}
         />
       )}
     </>

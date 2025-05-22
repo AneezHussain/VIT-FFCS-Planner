@@ -16,10 +16,14 @@
   /* Modal styles */
   .modal-content {
     @apply bg-white text-gray-900 border border-gray-200 shadow-lg rounded-lg;
+    width: 90%;
+    height: 90%;
   }
   
   .dark .modal-content {
     @apply bg-gray-800 text-gray-200 border-gray-700;
+    width: 90%;
+    height: 90%;
   }
   
   .modal-header {

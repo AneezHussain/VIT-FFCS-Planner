@@ -6,6 +6,7 @@ interface Course {
   slots: string[];
   credits: number;
   facultyPreferences?: string[];
+  facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>;
   code?: string;
   faculty?: string;
   venue?: string;
@@ -60,22 +61,43 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [], darkMode = false })
       .join('');
   };
 
+  // Helper function to get base course name (e.g., "Course A" from "Course A Lab")
+  const getBaseCourseName = (name: string) => name.replace(/ Lab$/, '');
+
   // Find course that includes a specific slot
-  const findCourseForSlot = (slotText: string): { course: Course; index: number } | null => {
-    // Extract the slot code before the slash if there is one
-    const slotCode = slotText.split('/')[0];
-    
+  const findCourseForSlot = (slotText: string): { course: Course; index: number; matchedSlotPart: string } | null => {
+    const timetableSlotIdentifiers = slotText.split('/'); // e.g., ["A1", "L1"] or ["L6"]
+
     for (let i = 0; i < courses.length; i++) {
       const course = courses[i];
-      if (course.slots.includes(slotCode)) {
-        return { course, index: i };
+      let courseEffectiveSlots: string[] = [...course.slots]; // Default to general course slots
+
+      if (course.name.endsWith(' Lab') &&
+          course.facultyPreferences && course.facultyPreferences.length > 0 &&
+          course.facultyLabAssignments) {
+        const firstFacultyName = course.facultyPreferences[0];
+        const firstFacultyLabAssignment = course.facultyLabAssignments.find(a => a.facultyName === firstFacultyName);
+        
+        if (firstFacultyLabAssignment && firstFacultyLabAssignment.slots.length > 0) {
+          courseEffectiveSlots = firstFacultyLabAssignment.slots; 
+        }
+      }
+
+      for (const ttSlotId of timetableSlotIdentifiers) {
+        if (courseEffectiveSlots.includes(ttSlotId)) {
+          return { course, index: i, matchedSlotPart: ttSlotId };
+        }
       }
     }
     return null;
   };
 
-  // Get color class based on course index using the custom CSS classes
-  const getColorClass = (index: number): string => {
+  // Get color class based on course's base name for consistent coloring
+  const getColorClass = (course: Course, originalIndex: number, allCourses: Course[]): string => {
+    const baseName = getBaseCourseName(course.name);
+    const firstMatchingCourseIndex = allCourses.findIndex(c => getBaseCourseName(c.name) === baseName);
+    const colorLookupIndex = firstMatchingCourseIndex === -1 ? originalIndex : firstMatchingCourseIndex;
+
     const colorClasses = [
       'table-cell-course-red',
       'table-cell-course-blue',
@@ -84,10 +106,14 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [], darkMode = false })
       'table-cell-course-purple',
       'table-cell-course-teal',
       'table-cell-course-yellow',
-      'table-cell-course-primary'
+      'table-cell-course-primary',
+      'table-cell-course-indigo',
+      'table-cell-course-pink',
+      'table-cell-course-lime',
+      'table-cell-course-amber'
     ];
     
-    return colorClasses[index % 8];
+    return colorClasses[colorLookupIndex % 12];
   };
 
   // Create theory and lab time arrays without lunch row
@@ -129,7 +155,7 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [], darkMode = false })
   };
 
   return (
-    <div className={`overflow-x-auto rounded-xl border ${darkMode ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+    <div className={`overflow-x-auto rounded-xl`}>
       <table className={`min-w-full table-fixed ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <tbody className={`divide-y ${darkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
           {/* Theory Hours Row */}
@@ -235,13 +261,28 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [], darkMode = false })
                 return (
                   <td 
                     key={index} 
-                    className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${courseInfo ? getColorClass(courseInfo.index) : ''}`}
+                    className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${courseInfo ? getColorClass(courseInfo.course, courseInfo.index, courses) : ''}`}
                     style={cellStyle}
                   >
                     {courseInfo ? (
                       <div className="flex flex-col items-center justify-center h-full w-full">
                         <div className="font-bold">{getCourseInitials(courseInfo.course.name)}</div>
-                        <div className="text-xs mt-1">{slot}</div>
+                        <div className="text-xs mt-1">
+                          {typeof slot === 'string' && slot.includes('/') ? (
+                            slot.split('/').map((part, i, arr) => (
+                              <React.Fragment key={i}>
+                                <span className={part === courseInfo.matchedSlotPart ? 'text-base' : 'text-[11px]'}>
+                                  {part}
+                                </span>
+                                {i < arr.length - 1 && '/'}
+                              </React.Fragment>
+                            ))
+                          ) : (
+                            <span className={(slot as string) === courseInfo.matchedSlotPart ? 'text-base' : ''}>
+                              {slot}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div className={darkMode ? 'text-gray-500' : 'text-gray-600'}>{slot}</div>
@@ -275,13 +316,28 @@ const TimeTable: React.FC<TimeTableProps> = ({ courses = [], darkMode = false })
                 return (
                   <td 
                     key={index + 6} 
-                    className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${courseInfo ? getColorClass(courseInfo.index) : ''}`}
+                    className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${courseInfo ? getColorClass(courseInfo.course, courseInfo.index, courses) : ''}`}
                     style={cellStyle}
                   >
                     {courseInfo ? (
                       <div className="flex flex-col items-center justify-center h-full w-full">
                         <div className="font-bold">{getCourseInitials(courseInfo.course.name)}</div>
-                        <div className="text-xs mt-1">{slot}</div>
+                        <div className="text-xs mt-1">
+                          {typeof slot === 'string' && slot.includes('/') ? (
+                            slot.split('/').map((part, i, arr) => (
+                              <React.Fragment key={i}>
+                                <span className={part === courseInfo.matchedSlotPart ? 'text-base' : 'text-[11px]'}>
+                                  {part}
+                                </span>
+                                {i < arr.length - 1 && '/'}
+                              </React.Fragment>
+                            ))
+                          ) : (
+                            <span className={(slot as string) === courseInfo.matchedSlotPart ? 'text-base' : ''}>
+                              {slot}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div className={darkMode ? 'text-gray-500' : 'text-gray-600'}>{slot}</div>

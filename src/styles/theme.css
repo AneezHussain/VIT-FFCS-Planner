@@ -3,6 +3,8 @@
 /* Modal styling */
 .modal-content {
   @apply bg-white rounded-xl;
+  width: 90%;
+  height: 90%;
 }
 
 .modal-header {
@@ -11,6 +13,8 @@
 
 .dark .modal-content {
   @apply bg-gray-900 text-white;
+  width: 90%;
+  height: 90%;
 }
 
 .dark .modal-header {

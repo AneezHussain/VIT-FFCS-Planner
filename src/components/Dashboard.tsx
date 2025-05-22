@@ -1,6 +1,7 @@
-import React, { useState, useRef, useCallback, DragEvent, useEffect } from 'react';
-import { AiOutlineMenu, AiOutlineHome, AiOutlineSetting, AiOutlineUser, AiOutlineTeam, AiOutlinePlus, AiOutlineShareAlt, AiOutlineUpload, AiOutlineClose, AiOutlineFile, AiOutlineEdit, AiOutlineDelete, AiOutlineSearch, AiOutlineCloud } from 'react-icons/ai';
+import React, { useState, useRef, useCallback, type DragEvent, useEffect } from 'react';
+import { AiOutlineMenu, AiOutlineHome, AiOutlineSetting, AiOutlineUser, AiOutlineTeam, AiOutlinePlus, AiOutlineShareAlt, AiOutlineUpload, AiOutlineClose, AiOutlineFile, AiOutlineEdit, AiOutlineDelete, AiOutlineSearch, AiOutlineCloud, AiOutlineCalendar, AiOutlineQuestionCircle } from 'react-icons/ai';
 import { BsSun, BsMoonStars } from 'react-icons/bs';
+import { BiConversation } from 'react-icons/bi';
 import { IoClose } from 'react-icons/io5';
 import { VscDebugRestart } from 'react-icons/vsc';
 import TimeTable from './TimeTable';
@@ -10,16 +11,38 @@ import TimeTableModal from './TimeTableModal';
 import FacultyPreferenceModal from './FacultyPreferenceModal';
 import ExportModal from './ExportModal';
 import CustomPreferredSlotModal from './CustomPreferredSlotModal';
+import FacultyList from './FacultyList';
+import Navbar from './navbar';
+
+// Define slot conflicts centrally here or import from a shared utility
+const slotConflictPairs = [
+  // Monday conflicts
+  ['A1', 'L1'], ['F1', 'L2'], ['D1', 'L3'], ['TB1', 'L4'], ['TG1', 'L5'], ['L6', 'B1'],
+  ['A2', 'L31'], ['F2', 'L32'], ['D2', 'L33'], ['TB2', 'L34'], ['TG2', 'L35'], ['L36', 'B2'],
+  // Tuesday conflicts
+  ['B1', 'L7'], ['G1', 'L8'], ['E1', 'L9'], ['TC1', 'L10'], ['TAA1', 'L11'], ['L12', 'C1'],
+  ['B2', 'L37'], ['G2', 'L38'], ['E2', 'L39'], ['TC2', 'L40'], ['TAA2', 'L41'], ['L42', 'C2'],
+  // Wednesday conflicts
+  ['C1', 'L13'], ['A1', 'L14'], ['F1', 'L15'], ['D1', 'L16'], ['TB1', 'L17'], ['L18', 'G1'],
+  ['C2', 'L43'], ['A2', 'L44'], ['F2', 'L45'], ['D2', 'L46'], ['TB2', 'L47'], ['L48', 'G2'],
+  // Thursday conflicts
+  ['D1', 'L19'], ['B1', 'L20'], ['G1', 'L21'], ['E1', 'L22'], ['TC1', 'L23'], ['L24', 'A1'],
+  ['D2', 'L49'], ['B2', 'L50'], ['G2', 'L51'], ['E2', 'L52'], ['TC2', 'L53'], ['L54', 'A2'],
+  // Friday conflicts
+  ['E1', 'L25'], ['C1', 'L26'], ['TA1', 'L27'], ['TF1', 'L28'], ['TD1', 'L29'], ['L30', 'F1'],
+  ['E2', 'L55'], ['C2', 'L56'], ['TA2', 'L57'], ['TF2', 'L58'], ['TDD2', 'L59'], ['L60', 'F2']
+];
 
 interface Course {
   name: string;
   slots: string[];
   credits: number;
   facultyPreferences?: string[];
+  facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>;
 }
 
 const Dashboard: React.FC = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [semesterName, setSemesterName] = useState('');
@@ -73,6 +96,8 @@ const Dashboard: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [expandedCard]);
+
+  const getBaseCourseName = (name: string) => name.replace(/ Lab$/, '');
 
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -136,7 +161,6 @@ const Dashboard: React.FC = () => {
         const values = lines[i].split(',');
         const rowData: { [key: string]: any } = {};
         
-        // Map values to headers
         headers.forEach((header, index) => {
           rowData[header] = values[index];
         });
@@ -146,10 +170,18 @@ const Dashboard: React.FC = () => {
           name: rowData['courseName'],
           slots: rowData['slots'] ? rowData['slots'].split('|') : [],
           credits: parseInt(rowData['credits']),
-          facultyPreferences: rowData['facultyPreferences'] ? rowData['facultyPreferences'].split('|').filter(Boolean) : []
+          facultyPreferences: rowData['facultyPreferences'] ? rowData['facultyPreferences'].split('|').filter(Boolean) : [],
+          facultyLabAssignments: rowData['facultyLabAssignments'] 
+            ? rowData['facultyLabAssignments'].split(';').filter(Boolean).map((assignment: string) => {
+                const [facultyName, slotsString] = assignment.split(':');
+                return {
+                  facultyName,
+                  slots: slotsString ? slotsString.split('-') : [] // Assuming slots are 'L1-L2' in CSV
+                };
+              })
+            : undefined
         });
         
-        // Set semester name and preferred slot from the first row
         if (i === 1) {
           data.semesterName = rowData['semesterName'] || '';
           data.preferredSlot = (rowData['preferredSlot'] === 'evening' ? 'evening' : rowData['preferredSlot'] === 'custom' ? 'custom' : 'morning');
@@ -185,40 +217,115 @@ const Dashboard: React.FC = () => {
     selectedSlots: string[]; 
     credits: number;
     facultyPreferences?: string[];
+    includeLabCourse?: boolean;
+    facultyLabAssignments?: Map<string, string[]>
   }) => {
+    let updatedCourses = [...courses];
+    const theoryFacultyPrefs = data.facultyPreferences || [];
+    const facultyLabAssignmentsArray = data.facultyLabAssignments 
+      ? Array.from(data.facultyLabAssignments.entries()).map(([facultyName, slots]) => ({ facultyName, slots }))
+      : undefined;
+
     if (editingCourseIndex !== null) {
-      // Update existing course
-      const updatedCourses = [...courses];
       updatedCourses[editingCourseIndex] = { 
+        ...updatedCourses[editingCourseIndex],
         name: data.courseName, 
         slots: data.selectedSlots, 
-        credits: data.credits,
-        facultyPreferences: data.facultyPreferences || []
+        credits: data.credits, 
+        facultyPreferences: theoryFacultyPrefs,
+        facultyLabAssignments: facultyLabAssignmentsArray || updatedCourses[editingCourseIndex].facultyLabAssignments
       };
-      setCourses(updatedCourses);
+      
+      if (data.includeLabCourse) {
+        const labCourse: Course = {
+          name: `${data.courseName} Lab`,
+          slots: data.selectedSlots, 
+          credits: 1, 
+          facultyPreferences: theoryFacultyPrefs, 
+          facultyLabAssignments: facultyLabAssignmentsArray 
+        };
+        const existingLabIndex = updatedCourses.findIndex(c => c.name === labCourse.name);
+        if (existingLabIndex !== -1) {
+          updatedCourses[existingLabIndex] = { ...updatedCourses[existingLabIndex], ...labCourse };
+        } else {
+          updatedCourses.push(labCourse);
+        }
+      }
       setEditingCourseIndex(null);
     } else {
-      // Add new course
-      setCourses([...courses, { 
+      const newTheoryCourse: Course = {
         name: data.courseName, 
         slots: data.selectedSlots, 
-        credits: data.credits,
-        facultyPreferences: data.facultyPreferences || []
-      }]);
+        credits: data.credits, 
+        facultyPreferences: theoryFacultyPrefs,
+      };
+      updatedCourses.push(newTheoryCourse);
+
+      if (data.includeLabCourse) {
+        const newLabCourse: Course = {
+          name: `${data.courseName} Lab`,
+          slots: data.selectedSlots,
+          credits: 1,
+          facultyPreferences: theoryFacultyPrefs,
+          facultyLabAssignments: facultyLabAssignmentsArray
+        };
+        updatedCourses.push(newLabCourse);
+      }
     }
+    setCourses(updatedCourses);
     setIsCourseModalOpen(false);
   };
 
-  const handleFacultyPreferenceSubmit = (facultyPreferences: string[]) => {
-    if (tempCourseData && editingCourseIndex !== null) {
-      // Update faculty for existing course
-      const updatedCourses = [...courses];
-      updatedCourses[editingCourseIndex] = {
-        ...updatedCourses[editingCourseIndex],
-        facultyPreferences
-      };
+  const handleFacultyPreferenceSubmit = (
+    facultyPreferences: string[], 
+    includeLabCourse?: boolean, 
+    facultyLabAssignmentsMap?: Map<string, string[]>
+  ) => {
+    if (tempCourseData) {
+      let updatedCourses = [...courses];
+      let theoryCourseName = tempCourseData.courseName;
+      let theorySlots = tempCourseData.selectedSlots;
+      const facultyLabAssignmentsArray = facultyLabAssignmentsMap 
+        ? Array.from(facultyLabAssignmentsMap.entries()).map(([facultyName, slots]) => ({ facultyName, slots })) 
+        : undefined;
+
+      if (editingCourseIndex !== null) {
+        updatedCourses[editingCourseIndex] = {
+          ...updatedCourses[editingCourseIndex],
+          facultyPreferences,
+        };
+        theoryCourseName = updatedCourses[editingCourseIndex].name;
+        theorySlots = updatedCourses[editingCourseIndex].slots;
+      } else {
+        const newCourse: Course = {
+          name: tempCourseData.courseName,
+          slots: tempCourseData.selectedSlots,
+          credits: tempCourseData.credits,
+          facultyPreferences,
+        };
+        updatedCourses.push(newCourse);
+      }
+      
+      if (includeLabCourse) {
+        const labCourseData: Course = {
+          name: `${theoryCourseName} Lab`,
+          slots: theorySlots, 
+          credits: 1, 
+          facultyPreferences: facultyPreferences,
+          facultyLabAssignments: facultyLabAssignmentsArray 
+        };
+        const existingLabIndex = updatedCourses.findIndex(c => c.name === labCourseData.name);
+        if (existingLabIndex !== -1) {
+          updatedCourses[existingLabIndex] = { ...updatedCourses[existingLabIndex], ...labCourseData };
+        } else {
+          updatedCourses.push(labCourseData);
+        }
+      }
+      
       setCourses(updatedCourses);
-      setEditingCourseIndex(null);
+      if (editingCourseIndex !== null) {
+        setEditingCourseIndex(null);
+      }
     }
     setTempCourseData(null);
     setIsFacultyModalOpen(false);
@@ -248,27 +355,62 @@ const Dashboard: React.FC = () => {
     selectedSlots: string[]; 
     credits: number;
     facultyPreferences?: string[];
+    includeLabCourse?: boolean;
+    facultyLabAssignments?: Map<string, string[]>
   }) => {
+    let updatedCourses = [...courses];
+    const theoryFacultyPrefs = data.facultyPreferences || [];
+    const facultyLabAssignmentsArray = data.facultyLabAssignments
+      ? Array.from(data.facultyLabAssignments.entries()).map(([facultyName, slots]) => ({ facultyName, slots }))
+      : undefined;
+
     if (editingCourseIndex !== null) {
-      // Update existing course
-      const updatedCourses = [...courses];
       updatedCourses[editingCourseIndex] = { 
+        ...updatedCourses[editingCourseIndex],
         name: data.courseName, 
         slots: data.selectedSlots, 
-        credits: data.credits,
-        facultyPreferences: data.facultyPreferences || []
+        credits: data.credits, 
+        facultyPreferences: theoryFacultyPrefs,
+        facultyLabAssignments: facultyLabAssignmentsArray || updatedCourses[editingCourseIndex].facultyLabAssignments
       };
-      setCourses(updatedCourses);
+      
+      if (data.includeLabCourse) {
+        const labCourse: Course = {
+          name: `${data.courseName} Lab`,
+          slots: data.selectedSlots, 
+          credits: 1, 
+          facultyPreferences: theoryFacultyPrefs, 
+          facultyLabAssignments: facultyLabAssignmentsArray 
+        };
+        const existingLabIndex = updatedCourses.findIndex(c => c.name === labCourse.name);
+        if (existingLabIndex !== -1) {
+          updatedCourses[existingLabIndex] = { ...updatedCourses[existingLabIndex], ...labCourse };
+        } else {
+          updatedCourses.push(labCourse);
+        }
+      }
       setEditingCourseIndex(null);
     } else {
-      // Add new course
-      setCourses([...courses, { 
+      const newTheoryCourse: Course = {
         name: data.courseName, 
         slots: data.selectedSlots, 
-        credits: data.credits,
-        facultyPreferences: data.facultyPreferences || []
-      }]);
+        credits: data.credits, 
+        facultyPreferences: theoryFacultyPrefs,
+      };
+      updatedCourses.push(newTheoryCourse);
+
+      if (data.includeLabCourse) {
+        const newLabCourse: Course = {
+          name: `${data.courseName} Lab`,
+          slots: data.selectedSlots, 
+          credits: 1, 
+          facultyPreferences: theoryFacultyPrefs, 
+          facultyLabAssignments: facultyLabAssignmentsArray 
+        };
+        updatedCourses.push(newLabCourse);
+      }
     }
+    setCourses(updatedCourses);
     setIsCustomSlotModalOpen(false);
   };
 
@@ -278,6 +420,51 @@ const Dashboard: React.FC = () => {
     // Keep 'custom' selected in the preferredSlot while updating the custom tab
   };
 
+  // Add getAllSelectedSlots function
+  const getAllSelectedSlots = (): string[] => {
+    return courses.reduce((accSlots: string[], course) => {
+      let slotsForThisCourse: string[] = [...course.slots]; // Default to general course slots
+
+      if (course.name.endsWith(' Lab') &&
+          course.facultyPreferences && course.facultyPreferences.length > 0 &&
+          course.facultyLabAssignments) {
+        const firstFacultyName = course.facultyPreferences[0];
+        const firstFacultyLabAssignment = course.facultyLabAssignments.find(a => a.facultyName === firstFacultyName);
+        
+        if (firstFacultyLabAssignment && firstFacultyLabAssignment.slots.length > 0) {
+          slotsForThisCourse = firstFacultyLabAssignment.slots; // Use specific slots
+        }
+        // If no specific assignment for the first faculty, it implicitly uses course.slots (from initialization)
+      }
+      return [...accSlots, ...slotsForThisCourse];
+    }, []);
+  };
+
+  // Add exportDataToCSV function
+  const exportDataToCSV = (userName?: string, message?: string): string => {
+    const headers = ['courseName', 'slots', 'credits', 'facultyPreferences', 'semesterName', 'preferredSlot', 'facultyLabAssignments'];
+    const csvData = courses.map(course => ({
+      courseName: course.name,
+      slots: course.slots.join('|'),
+      credits: course.credits,
+      facultyPreferences: course.facultyPreferences?.join('|') || '',
+      semesterName: semesterName,
+      preferredSlot: preferredSlot,
+      facultyLabAssignments: course.facultyLabAssignments
+        ?.map(assignment => `${assignment.facultyName}:${assignment.slots.join('-')}`)
+        .join(';') || ''
+    }));
+
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => 
+        headers.map(header => row[header as keyof typeof row]).join(',')
+      )
+    ].join('\n');
+
+    return csvContent;
+  };
+
   const renderContent = () => {
     switch (currentPage) {
       case 'communities':
@@ -285,15 +472,6 @@ const Dashboard: React.FC = () => {
       case 'dashboard':
         return (
           <div className="space-y-8">
-            <div>
-              <h1 className="text-4xl font-semibold text-gray-900 tracking-tight">
-                Hello, Mohammed Aneez
-              </h1>
-              <p className="mt-3 text-xl text-gray-600">
-                Welcome to your FFCS dashboard!
-              </p>
-            </div>
-            
             {/* Semester Info and Course Cards */}
             <div>
               <div className="space-y-6">
@@ -301,30 +479,30 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-start gap-6">
                   {/* Semester Input - 60% width */}
                   <div className="w-48">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Semester Name
+                    <label className="block text-base font-semibold text-gray-700 mb-2">
+                      Semester
                     </label>
                     <input
                       type="text"
                       value={semesterName}
                       onChange={(e) => setSemesterName(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all h-12"
                       placeholder="Enter semester name"
                     />
                   </div>
 
                   {/* Theory Slot Preference */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-base font-semibold text-gray-700 mb-2">
                       Theory Slot Preference
                     </label>
-                    <div className="bg-gray-100 rounded-lg p-1 inline-flex items-center">
+                    <div className="bg-gray-100 rounded-lg p-1 inline-flex items-center h-12">
                       <button
                         onClick={() => {
                           setPreferredSlot('morning');
                           setIsCustomSlotModalOpen(false);
                         }}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${
                           preferredSlot === 'morning'
                             ? 'bg-white text-blue-600 shadow-sm'
                             : 'text-gray-600'
@@ -339,7 +517,7 @@ const Dashboard: React.FC = () => {
                           setPreferredSlot('evening');
                           setIsCustomSlotModalOpen(false);
                         }}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${
                           preferredSlot === 'evening'
                             ? 'bg-white text-blue-600 shadow-sm'
                             : 'text-gray-600'
@@ -353,7 +531,7 @@ const Dashboard: React.FC = () => {
                         onClick={() => {
                           setPreferredSlot('custom');
                         }}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${
                           preferredSlot === 'custom'
                             ? 'bg-white text-blue-600 shadow-sm'
                             : 'text-gray-600'
@@ -366,12 +544,9 @@ const Dashboard: React.FC = () => {
                   </div>
                    
                   {/* Total Credits Counter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Total Credits
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center">
+                  <div className="mt-8">
+                    <div className="flex items-center gap-6">
+                      <div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center h-12">
                         <span className="text-2xl font-bold text-gray-800">
                           {courses.reduce((total, course) => total + course.credits, 0)}
                         </span>
@@ -381,7 +556,7 @@ const Dashboard: React.FC = () => {
                       {/* Reset Button */}
                       <button
                         onClick={handleResetTable}
-                        className={`p-2 rounded-lg flex items-center ${
+                        className={`px-4 py-2 rounded-lg flex items-center space-x-2 h-12 ${
                           courses.length > 0 
                             ? 'bg-red-50 text-red-600 hover:bg-red-100' 
                             : 'bg-gray-50 text-gray-400 cursor-not-allowed'
@@ -390,251 +565,316 @@ const Dashboard: React.FC = () => {
                         title="Reset all courses"
                       >
                         <VscDebugRestart size={20} />
+                        <span className="font-medium">Reset</span>
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Course Cards Section */}
-                <div className="flex flex-wrap gap-4 items-start">
+                {/* Course Cards Title */}
+                <div className="flex items-center mb-4 mt-8">
+                  <AiOutlineFile size={20} className="text-gray-700 mr-2" />
+                  <h2 className="text-xl font-semibold text-gray-700">Course Cards</h2>
+                </div>
+
+                {/* Course Cards directly under the parent div */}
+                <div className="grid grid-cols-4 gap-4 items-start w-[calc(4*18rem+3*1rem)]">
                   {/* Course Cards */}
-                  {courses.map((course, index) => (
-                    <div 
-                      key={index}
-                      className={`
-                        bg-white border border-gray-200 rounded-lg p-4 pb-6 hover:shadow-md transition-all relative group flex flex-col
-                        ${expandedCard === index ? 'w-96 min-h-[260px] shadow-lg' : 'w-72 h-[210px]'}
-                      `}
-                      style={{
-                        transition: 'width 0.3s ease-in-out, height 0.3s ease-in-out, min-height 0.3s ease-in-out, transform 0.3s ease-in-out',
-                        zIndex: expandedCard === index ? 10 : 1,
-                        transform: expandedCard === index ? 'scale(1.02)' : 'scale(1)'
-                      }}
-                      ref={(el) => (cardRefs.current[index] = el)}
-                    >
-                      {/* Settings Button */}
-                      <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <div className="relative">
-                          <button 
-                            className="p-1 rounded-full bg-white text-gray-400 hover:text-blue-500 shadow-sm hover:shadow-md transition-all"
-                            onMouseEnter={() => document.getElementById(`settings-dropdown-${index}`)?.classList.remove('hidden')}
-                            onMouseLeave={() => setTimeout(() => {
-                              if (!document.getElementById(`settings-dropdown-${index}`)?.matches(':hover')) {
-                                document.getElementById(`settings-dropdown-${index}`)?.classList.add('hidden');
-                              }
-                            }, 100)}
-                          >
-                            <AiOutlineSetting size={20} />
-                          </button>
-                          <div 
-                            id={`settings-dropdown-${index}`} 
-                            className="absolute right-0 mt-1 bg-white shadow-lg rounded-md py-2 z-20 hidden w-48"
-                            onMouseEnter={() => document.getElementById(`settings-dropdown-${index}`)?.classList.remove('hidden')}
-                            onMouseLeave={() => document.getElementById(`settings-dropdown-${index}`)?.classList.add('hidden')}
-                            style={{ minWidth: '180px' }}
-                          >
+                  {courses.map((course, index) => {
+                    // Determine color index based on base course name for consistent coloring
+                    const baseName = getBaseCourseName(course.name);
+                    const firstMatchingCourseIndex = courses.findIndex(c => getBaseCourseName(c.name) === baseName);
+                    const colorLookupIndex = firstMatchingCourseIndex === -1 ? index : firstMatchingCourseIndex;
+                    
+                    return (
+                      <div 
+                        key={index}
+                        className={`
+                          bg-white border border-gray-200 rounded-lg p-4 pb-6 hover:shadow-md transition-all relative group flex flex-col
+                          ${expandedCard === index ? 'w-72 min-h-[260px] shadow-lg' : 'w-72 h-[210px]'}
+                        `}
+                        style={{
+                          transition: 'width 0.3s ease-in-out, height 0.3s ease-in-out, min-height 0.3s ease-in-out',
+                          zIndex: expandedCard === index ? 10 : 1,
+                          transform: expandedCard === index ? 'scale(1.02)' : 'scale(1)'
+                        }}
+                        ref={(el) => { cardRefs.current[index] = el; }}
+                      >
+                        {/* Settings Button */}
+                        <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <div className="relative">
                             <button 
-                              className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              onClick={() => {
-                                // Open course selector modal with existing data
-                                setEditingCourseIndex(index);
-                                // Open the appropriate modal based on selected preference
-                                if (preferredSlot === 'custom') {
-                                  setIsCustomSlotModalOpen(true);
-                                } else {
-                                  setIsCourseModalOpen(true);
+                              className="p-1 rounded-full bg-white text-gray-400 hover:text-blue-500 shadow-sm hover:shadow-md transition-all"
+                              onMouseEnter={() => document.getElementById(`settings-dropdown-${index}`)?.classList.remove('hidden')}
+                              onMouseLeave={() => setTimeout(() => {
+                                if (!document.getElementById(`settings-dropdown-${index}`)?.matches(':hover')) {
+                                  document.getElementById(`settings-dropdown-${index}`)?.classList.add('hidden');
                                 }
-                              }}
+                              }, 100)}
                             >
-                              <AiOutlineEdit className="mr-2 text-gray-500" size={18} />
-                              <span>Edit Course</span>
+                              <AiOutlineSetting size={20} />
                             </button>
-                            <button 
-                              className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              onClick={() => {
-                                // Open faculty preference modal directly
-                                setEditingCourseIndex(index);
-                                const tempData = {
-                                  courseName: course.name,
-                                  selectedSlots: course.slots,
-                                  credits: course.credits
-                                };
-                                setTempCourseData(tempData);
-                                setIsFacultyModalOpen(true);
-                              }}
+                            <div 
+                              id={`settings-dropdown-${index}`} 
+                              className="absolute right-0 mt-1 bg-white shadow-lg rounded-md py-2 z-20 hidden w-48"
+                              onMouseEnter={() => document.getElementById(`settings-dropdown-${index}`)?.classList.remove('hidden')}
+                              onMouseLeave={() => document.getElementById(`settings-dropdown-${index}`)?.classList.add('hidden')}
+                              style={{ minWidth: '180px' }}
                             >
-                              <AiOutlineUser className="mr-2 text-gray-500" size={18} />
-                              <span>Edit Faculty</span>
-                            </button>
-                            <div className="w-full h-px bg-gray-200 my-1"></div>
-                            <button 
-                              className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                              onClick={() => handleDeleteCourse(index)}
-                            >
-                              <AiOutlineDelete className="mr-2" size={18} />
-                              <span>Delete</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-start mt-3">
-                        <h3 className="font-medium text-gray-900">{course.name}</h3>
-                        <div className="flex items-center space-x-1 bg-gray-100 rounded-lg px-2 py-1">
-                          <span className="text-xs text-gray-500">Credits:</span>
-                          <span className="text-sm font-medium text-gray-900">{course.credits}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Faculty Preferences (if any) */}
-                      {course.facultyPreferences && course.facultyPreferences.length > 0 && expandedCard !== index && (
-                        <div className="mt-2 mb-2 pb-10">
-                          <div className="flex items-center flex-wrap gap-2">
-                            {course.facultyPreferences.slice(0, 3).map((faculty, facultyIndex) => (
-                              <div key={facultyIndex} className="flex items-center bg-blue-50 text-blue-700 rounded-full px-2 py-1 text-xs font-medium">
-                                {faculty}
-                              </div>
-                            ))}
-                            {course.facultyPreferences.length > 3 && (
                               <button 
-                                className="ml-2 text-blue-500 hover:text-blue-700 text-xs font-bold flex items-center"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedCard(expandedCard === index ? null : index);
+                                className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                onClick={() => {
+                                  // Open course selector modal with existing data
+                                  setEditingCourseIndex(index);
+                                  // Open the appropriate modal based on selected preference
+                                  if (preferredSlot === 'custom') {
+                                    setIsCustomSlotModalOpen(true);
+                                  } else {
+                                    setIsCourseModalOpen(true);
+                                  }
                                 }}
                               >
-                                See more
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
+                                <AiOutlineEdit className="mr-2 text-gray-500" size={18} />
+                                <span>Edit Course</span>
                               </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Show "No faculties added" message when no faculty preferences exist */}
-                      {(!course.facultyPreferences || course.facultyPreferences.length === 0) && expandedCard !== index && (
-                        <div className="mt-2 mb-2 pb-10">
-                          <span className="text-xs text-gray-500">Preferred Faculty:</span>
-                          <div className="text-sm text-gray-500 italic mt-1">
-                            No faculties have been added
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Slot at the bottom for collapsed view - always fixed at bottom */}
-                      {expandedCard !== index && (
-                        <div className="absolute bottom-4 left-4 right-4">
-                          <span className={`
-                            px-3 py-2 text-xs font-medium rounded-md inline-block w-full text-center
-                            ${
-                              [
-                                'bg-red-50 text-red-700',
-                                'bg-blue-50 text-blue-700',
-                                'bg-green-50 text-green-700',
-                                'bg-yellow-50 text-yellow-700',
-                                'bg-purple-50 text-purple-700',
-                                'bg-pink-50 text-pink-700',
-                                'bg-indigo-50 text-indigo-700',
-                                'bg-orange-50 text-orange-700',
-                                'bg-teal-50 text-teal-700',
-                                'bg-cyan-50 text-cyan-700',
-                                'bg-lime-50 text-lime-700',
-                                'bg-amber-50 text-amber-700'
-                              ][index % 12]
-                            }
-                          `}>
-                            {course.slots.join('+')}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Expanded Faculty List */}
-                      {expandedCard === index && course.facultyPreferences && course.facultyPreferences.length > 0 && (
-                        <div className="animate-expandDown overflow-hidden pb-14">
-                          <div className="mt-2 py-2 px-3 bg-gray-50 rounded-md">
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">All Preferred Faculty:</h4>
-                            {course.facultyPreferences.map((faculty, facultyIndex) => (
-                              <div key={facultyIndex} className="flex items-center mb-2 last:mb-1">
-                                <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
-                                  {facultyIndex + 1}
-                                </div>
-                                <div className="text-sm font-medium text-gray-900">{faculty}</div>
-                              </div>
-                            ))}
-                            <div className="border-t border-gray-200 mt-2 pt-2 flex justify-center">
                               <button 
-                                className="text-blue-500 hover:text-blue-700 text-xs font-medium flex items-center"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedCard(null);
+                                className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                onClick={() => {
+                                  // Open faculty preference modal directly
+                                  setEditingCourseIndex(index);
+                                  const tempData = {
+                                    courseName: course.name,
+                                    selectedSlots: course.slots,
+                                    credits: course.credits,
+                                    facultyLabAssignments: course.facultyLabAssignments
+                                  };
+                                  setTempCourseData(tempData);
+                                  setIsFacultyModalOpen(true);
                                 }}
                               >
-                                Collapse 
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
+                                <AiOutlineUser className="mr-2 text-gray-500" size={18} />
+                                <span>Edit Faculty</span>
+                              </button>
+                              <div className="w-full h-px bg-gray-200 my-1"></div>
+                              <button 
+                                className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteCourse(index)}
+                              >
+                                <AiOutlineDelete className="mr-2" size={18} />
+                                <span>Delete</span>
                               </button>
                             </div>
                           </div>
                         </div>
-                      )}
-                      
-                      {/* Expanded view showing "No faculties added" message */}
-                      {expandedCard === index && (!course.facultyPreferences || course.facultyPreferences.length === 0) && (
-                        <div className="animate-expandDown overflow-hidden pb-14">
-                          <div className="mt-2 py-2 px-3 bg-gray-50 rounded-md">
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">All Preferred Faculty:</h4>
-                            <div className="text-sm text-gray-500 italic mb-3">
+
+                        <div className="flex justify-between items-start mt-3">
+                          <h3 className="font-medium text-gray-900">{course.name}</h3>
+                          <div className="flex items-center space-x-1 bg-gray-100 rounded-lg px-2 py-1">
+                            <span className="text-xs text-gray-500">Credits:</span>
+                            <span className="text-sm font-medium text-gray-900">{course.credits}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Faculty Preferences (if any) */}
+                        {course.facultyPreferences && course.facultyPreferences.length > 0 && expandedCard !== index && (
+                          <div className="mt-2 mb-2 pb-10">
+                            <div className="flex flex-col space-y-2">
+                              {course.facultyPreferences.slice(0, 3).map((faculty, facultyIndex) => {
+                                let labSlotsForFaculty: string | null = null;
+                                if (course.name.endsWith(' Lab') && course.facultyLabAssignments) {
+                                  const assignment = course.facultyLabAssignments.find(a => a.facultyName === faculty);
+                                  if (assignment && assignment.slots.length > 0) {
+                                    labSlotsForFaculty = assignment.slots.join('+');
+                                  }
+                                }
+                                return (
+                                  <div key={facultyIndex} className="flex items-center">
+                                    <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
+                                      {facultyIndex + 1}
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-900">{faculty}</div>
+                                    {labSlotsForFaculty && (
+                                      <span className="ml-2 text-xs bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-md">
+                                        Lab: {labSlotsForFaculty}
+                                      </span>
+                                    )}
+                                    {facultyIndex === 2 && course.facultyPreferences && course.facultyPreferences.length > 3 && (
+                                      <button 
+                                        className="text-gray-500 hover:text-gray-700 text-xs font-medium ml-2 flex items-center whitespace-nowrap"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExpandedCard(expandedCard === index ? null : index);
+                                        }}
+                                      >
+                                        See more
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Show "No faculties added" message when no faculty preferences exist */}
+                        {(!course.facultyPreferences || course.facultyPreferences.length === 0) && expandedCard !== index && (
+                          <div className="mt-2 mb-2 pb-10">
+                            <div className="text-sm text-gray-500 italic">
                               No faculties have been added
                             </div>
-                            <div className="border-t border-gray-200 mt-2 pt-2 flex justify-center">
-                              <button 
-                                className="text-blue-500 hover:text-blue-700 text-xs font-medium flex items-center"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedCard(null);
-                                }}
-                              >
-                                Collapse 
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </button>
+                          </div>
+                        )}
+                        
+                        {/* Slot at the bottom for collapsed view - always fixed at bottom */}
+                        {expandedCard !== index && (
+                          <div className="absolute bottom-4 left-4 right-4">
+                            <span className={`
+                              px-3 py-2 text-xs font-medium rounded-md inline-block w-full text-center
+                              ${
+                                [
+                                  'bg-red-50 text-red-700',
+                                  'bg-blue-50 text-blue-700',
+                                  'bg-green-50 text-green-700',
+                                  'bg-yellow-50 text-yellow-700',
+                                  'bg-purple-50 text-purple-700',
+                                  'bg-pink-50 text-pink-700',
+                                  'bg-indigo-50 text-indigo-700',
+                                  'bg-orange-50 text-orange-700',
+                                  'bg-teal-50 text-teal-700',
+                                  'bg-cyan-50 text-cyan-700',
+                                  'bg-lime-50 text-lime-700',
+                                  'bg-amber-50 text-amber-700'
+                                ][colorLookupIndex % 12]
+                              }
+                            `}>
+                              {(() => {
+                                let displaySlots = course.slots.join('+');
+                                if (course.name.endsWith(' Lab') && course.facultyPreferences && course.facultyPreferences.length > 0 && course.facultyLabAssignments) {
+                                  const firstFacultyName = course.facultyPreferences[0];
+                                  const firstFacultyLabAssignment = course.facultyLabAssignments.find(a => a.facultyName === firstFacultyName);
+                                  if (firstFacultyLabAssignment && firstFacultyLabAssignment.slots.length > 0) {
+                                    displaySlots = firstFacultyLabAssignment.slots.join('+');
+                                  }
+                                }
+                                return displaySlots;
+                              })()}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Expanded Faculty List */}
+                        {expandedCard === index && course.facultyPreferences && course.facultyPreferences.length > 0 && (
+                          <div className="animate-expandDown overflow-hidden pb-14">
+                            <div className="mt-2 py-2">
+                              <h4 className="text-sm font-medium text-gray-900 mb-2">All Preferred Faculty:</h4>
+                              {course.facultyPreferences.map((faculty, facultyIndex) => {
+                                let labSlotsForFaculty: string | null = null;
+                                if (course.name.endsWith(' Lab') && course.facultyLabAssignments) {
+                                  const assignment = course.facultyLabAssignments.find(a => a.facultyName === faculty);
+                                  if (assignment && assignment.slots.length > 0) {
+                                    labSlotsForFaculty = assignment.slots.join('+');
+                                  }
+                                }
+                                return (
+                                  <div key={facultyIndex} className="flex items-center mb-2 last:mb-1">
+                                    <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
+                                      {facultyIndex + 1}
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-900">{faculty}</div>
+                                    {labSlotsForFaculty && (
+                                      <span className="ml-2 text-xs bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-md">
+                                        Lab: {labSlotsForFaculty}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              <div className="border-t border-gray-200 mt-2 pt-2 flex justify-center">
+                                <button 
+                                  className="text-gray-500 hover:text-gray-700 text-xs font-medium flex items-center"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedCard(null);
+                                  }}
+                                >
+                                  Collapse 
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                      
-                      {/* Slot for expanded view - also fixed at bottom */}
-                      {expandedCard === index && (
-                        <div className="absolute bottom-4 left-4 right-4">
-                          <span className={`
-                            px-3 py-2 text-xs font-medium rounded-md inline-block w-full text-center
-                            ${
-                              [
-                                'bg-red-50 text-red-700',
-                                'bg-blue-50 text-blue-700',
-                                'bg-green-50 text-green-700',
-                                'bg-yellow-50 text-yellow-700',
-                                'bg-purple-50 text-purple-700',
-                                'bg-pink-50 text-pink-700',
-                                'bg-indigo-50 text-indigo-700',
-                                'bg-orange-50 text-orange-700',
-                                'bg-teal-50 text-teal-700',
-                                'bg-cyan-50 text-cyan-700',
-                                'bg-lime-50 text-lime-700',
-                                'bg-amber-50 text-amber-700'
-                              ][index % 12]
-                            }
-                          `}>
-                            {course.slots.join('+')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                        
+                        {/* Expanded view showing "No faculties added" message */}
+                        {expandedCard === index && (!course.facultyPreferences || course.facultyPreferences.length === 0) && (
+                          <div className="animate-expandDown overflow-hidden pb-14">
+                            <div className="mt-2 py-2">
+                              <h4 className="text-sm font-medium text-gray-900 mb-2">All Preferred Faculty:</h4>
+                              <div className="text-sm text-gray-500 italic mb-3">
+                                No faculties have been added
+                              </div>
+                              <div className="border-t border-gray-200 mt-2 pt-2 flex justify-center">
+                                <button 
+                                  className="text-gray-500 hover:text-gray-700 text-xs font-medium flex items-center"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedCard(null);
+                                  }}
+                                >
+                                  Collapse 
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Slot for expanded view - also fixed at bottom */}
+                        {expandedCard === index && (
+                          <div className="absolute bottom-4 left-4 right-4">
+                            <span className={`
+                              px-3 py-2 text-xs font-medium rounded-md inline-block w-full text-center
+                              ${
+                                [
+                                  'bg-red-50 text-red-700',
+                                  'bg-blue-50 text-blue-700',
+                                  'bg-green-50 text-green-700',
+                                  'bg-yellow-50 text-yellow-700',
+                                  'bg-purple-50 text-purple-700',
+                                  'bg-pink-50 text-pink-700',
+                                  'bg-indigo-50 text-indigo-700',
+                                  'bg-orange-50 text-orange-700',
+                                  'bg-teal-50 text-teal-700',
+                                  'bg-cyan-50 text-cyan-700',
+                                  'bg-lime-50 text-lime-700',
+                                  'bg-amber-50 text-amber-700'
+                                ][colorLookupIndex % 12]
+                              }
+                            `}>
+                              {(() => {
+                                let displaySlots = course.slots.join('+');
+                                if (course.name.endsWith(' Lab') && course.facultyPreferences && course.facultyPreferences.length > 0 && course.facultyLabAssignments) {
+                                  const firstFacultyName = course.facultyPreferences[0];
+                                  const firstFacultyLabAssignment = course.facultyLabAssignments.find(a => a.facultyName === firstFacultyName);
+                                  if (firstFacultyLabAssignment && firstFacultyLabAssignment.slots.length > 0) {
+                                    displaySlots = firstFacultyLabAssignment.slots.join('+');
+                                  }
+                                }
+                                return displaySlots;
+                              })()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {/* Add Course Button */}
                   <button
@@ -647,7 +887,7 @@ const Dashboard: React.FC = () => {
                         setIsCourseModalOpen(true);
                       }
                     }}
-                    className="w-72 h-[210px] flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 transition-all group"
+                    className="w-72 h-[210px] flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-500 hover:bg-gray-50 transition-all group"
                   >
                     <AiOutlinePlus className="text-2xl text-gray-500 mb-1" />
                     <span className="text-sm font-medium text-gray-600">
@@ -658,7 +898,12 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="shadow-sm hover:shadow-md transition-shadow duration-200">
+            {/* Timetable Display Area */}
+            <div className="flex items-center mb-4 mt-8">
+              <AiOutlineCalendar size={20} className="text-gray-700 mr-2" />
+              <h2 className="text-xl font-semibold text-gray-700">Time Table</h2>
+            </div>
+            <div className="shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-200 rounded-xl overflow-hidden">
               <TimeTable courses={courses} />
             </div>
 
@@ -671,7 +916,7 @@ const Dashboard: React.FC = () => {
               }}
               onSubmit={handleCourseSubmit}
               preferredSlot={preferredSlot}
-              existingSlots={getAllSelectedSlots().filter(slot => 
+              existingSlots={getAllSelectedSlots().filter((slot: string) => 
                 editingCourseIndex === null || !courses[editingCourseIndex].slots.includes(slot)
               )}
               editingCourse={editingCourseIndex !== null ? courses[editingCourseIndex] : undefined}
@@ -694,7 +939,7 @@ const Dashboard: React.FC = () => {
               onSubmit={handleCustomSlotSubmit}
               onTabChange={handleCustomTabChange}
               activeTab={customActiveTab}
-              existingSlots={getAllSelectedSlots().filter(slot => 
+              existingSlots={getAllSelectedSlots().filter((slot: string) => 
                 editingCourseIndex === null || !courses[editingCourseIndex].slots.includes(slot)
               )}
               editingCourse={editingCourseIndex !== null ? courses[editingCourseIndex] : undefined}
@@ -712,117 +957,21 @@ const Dashboard: React.FC = () => {
                 onSubmit={handleFacultyPreferenceSubmit}
                 courseName={`${tempCourseData.courseName} ${tempCourseData.selectedSlots.join('+')}`}
                 initialFacultyPreferences={editingCourseIndex !== null ? courses[editingCourseIndex].facultyPreferences : []}
+                allCurrentlyUsedSlots={getAllSelectedSlots()}
+                slotConflictPairs={slotConflictPairs}
               />
             )}
           </div>
         );
       case 'faculty-list':
-        return (
-          <div className="space-y-8">
-            <div>
-              <h1 className="text-4xl font-semibold text-gray-900 tracking-tight">
-                Faculty List
-              </h1>
-              <p className="mt-3 text-xl text-gray-600">
-                View all faculty preferences
-              </p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="mb-6">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search faculty..."
-                    value={facultySearchQuery}
-                    onChange={(e) => setFacultySearchQuery(e.target.value)}
-                    className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  />
-                  <AiOutlineSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                </div>
-              </div>
-
-              {semesterName && (
-                <div className="font-medium text-lg text-gray-900 mb-4">
-                  Semester: {semesterName}
-                </div>
-              )}
-              
-              {/* Create a flattened, alphabetically sorted list of all faculty */}
-              {(() => {
-                // Extract all faculty with their course and slot info
-                const allFaculty: Array<{
-                  facultyName: string;
-                  courseName: string;
-                  slots: string[];
-                }> = [];
-                
-                courses.forEach(course => {
-                  if (course.facultyPreferences && course.facultyPreferences.length > 0) {
-                    course.facultyPreferences.forEach(faculty => {
-                      allFaculty.push({
-                        facultyName: faculty,
-                        courseName: course.name,
-                        slots: course.slots,
-                      });
-                    });
-                  }
-                });
-                
-                // Filter by search query
-                const filteredFaculty = allFaculty.filter(item => 
-                  facultySearchQuery === '' || 
-                  item.facultyName.toLowerCase().includes(facultySearchQuery.toLowerCase()) ||
-                  item.courseName.toLowerCase().includes(facultySearchQuery.toLowerCase())
-                );
-                
-                // Sort alphabetically by faculty name
-                filteredFaculty.sort((a, b) => a.facultyName.localeCompare(b.facultyName));
-                
-                if (filteredFaculty.length === 0) {
-                  return (
-                    <div className="text-center py-10">
-                      <div className="text-gray-400 mb-3">
-                        <AiOutlineUser size={40} className="mx-auto" />
-                      </div>
-                      {facultySearchQuery ? (
-                        <p className="text-gray-600">No faculties found matching "{facultySearchQuery}"</p>
-                      ) : (
-                        <p className="text-gray-600">No faculty preferences have been added yet</p>
-                      )}
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div className="space-y-4">
-                    {filteredFaculty.map((item, index) => (
-                      <div key={index} className="p-4 border border-gray-200 rounded-lg hover:shadow-sm transition-all">
-                        <div className="flex items-start">
-                          <div className="font-bold text-gray-900">{item.facultyName}</div>
-                        </div>
-                        <div className="mt-1 text-sm text-gray-500">
-                          {item.courseName} • {item.slots.join('+')}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        );
+        return <FacultyList courses={courses} semesterName={semesterName} />;
       default:
-        return (
-          <div className="flex items-center justify-center h-64">
-            <p className="text-gray-600">Coming soon...</p>
-          </div>
-        );
+        return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-auto">
+    <div className="min-h-screen bg-white overflow-x-auto flex flex-col">
       {/* Hidden file input for CSV import */}
       <input
         type="file"
@@ -834,94 +983,69 @@ const Dashboard: React.FC = () => {
       />
       
       {/* Top Navigation Bar */}
-      <nav className={`bg-white shadow-sm fixed w-full z-10 ${hideNavbar ? 'hidden' : ''}`}>
-        <div className="h-16 w-full px-6 flex items-center justify-between">
-          <div className="flex items-center">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 rounded-md hover:bg-gray-100"
-            >
-              <AiOutlineMenu className="h-6 w-6 text-gray-700" />
-            </button>
-          </div>
-          
-          {/* Profile Section with Import/Export/Google Drive Buttons */}
-          <div className="flex items-center space-x-3">
-            {/* Import Button */}
-            <button
-              ref={importButtonRef}
-              onClick={() => setIsImportModalOpen(true)}
-              className="p-2 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-              title="Import data from CSV"
-            >
-              <AiOutlineUpload className="h-5 w-5" />
-            </button>
-            
-            <div className="text-right hidden sm:block">
-              <div className="text-sm font-medium text-gray-900">Mohammed Aneez</div>
-              <div className="text-xs text-gray-500">20BCE1430</div>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
-              MA
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar 
+        hideNavbar={hideNavbar}
+        currentPage={currentPage}
+        importButtonRef={importButtonRef}
+        setIsImportModalOpen={setIsImportModalOpen}
+      />
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-16 h-full bg-white shadow-md transition-transform duration-300 ease-in-out transform ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } w-64 z-20`}
+        className={`fixed left-0 top-16 h-full bg-white shadow-md transition-all duration-300 ease-in-out transform z-20 w-16`}
       >
-        <div className="p-4">
-          <div className="space-y-4">
-            <SidebarItem 
-              icon={<AiOutlineHome />} 
-              text="Dashboard" 
-              onClick={() => setCurrentPage('dashboard')}
-              active={currentPage === 'dashboard'}
-            />
-            <SidebarItem 
-              icon={<AiOutlineUser />} 
-              text="Faculty List" 
-              onClick={() => setCurrentPage('faculty-list')}
-              active={currentPage === 'faculty-list'}
-            />
-            <SidebarItem 
-              icon={<AiOutlineTeam />} 
-              text="Communities" 
-              onClick={() => setCurrentPage('communities')}
-              active={currentPage === 'communities'}
-            />
-            <SidebarItem icon={<AiOutlineSetting />} text="Settings" onClick={() => setCurrentPage('settings')} />
+        <div className="h-full flex flex-col">
+          <div className="my-auto p-2" style={{ transform: 'translateY(-2rem)' }}>
+            <div className="space-y-4">
+              <SidebarItem 
+                icon={<AiOutlineHome />} 
+                text="Dashboard" 
+                onClick={() => setCurrentPage('dashboard')}
+                active={currentPage === 'dashboard'}
+              />
+              <SidebarItem 
+                icon={<AiOutlineTeam />} 
+                text="Faculty List" 
+                onClick={() => setCurrentPage('faculty-list')}
+                active={currentPage === 'faculty-list'}
+              />
+              <SidebarItem 
+                icon={<BiConversation />} 
+                text="Communities" 
+                onClick={() => setCurrentPage('communities')}
+                active={currentPage === 'communities'}
+              />
+              <SidebarItem 
+                icon={<AiOutlineQuestionCircle />} 
+                text="Help" 
+                onClick={() => setCurrentPage('help')} 
+                // active={currentPage === 'help'} // Decide if 'Help' should have an active state
+              />
+              <SidebarItem 
+                icon={<AiOutlineSetting />} 
+                text="Settings" 
+                onClick={() => setCurrentPage('settings')} 
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content - Fixed width and centered */}
-      <div className="pt-16 mx-auto max-w-7xl">
-        <div className="w-full mx-auto p-8">
+      <div className={`flex-grow pt-24 mx-auto max-w-screen-2xl transition-all duration-300 ease-in-out pl-8`}>
+        <div className="w-full mx-auto py-4">
           {renderContent()}
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-8 mt-8">
+      <footer className="bg-white py-4 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center">
             <p className="text-gray-600">Made with ❤️ for Vitians</p>
           </div>
         </div>
       </footer>
-
-      {/* Overlay for mobile */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        ></div>
-      )}
 
       {/* Export Modal */}
       {isExportModalOpen && (
@@ -973,6 +1097,15 @@ const ImportPopover: React.FC<ImportPopoverProps> = ({
   const modalRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, right: 0 });
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
+
   // Calculate position based on trigger button location
   useEffect(() => {
     if (isOpen && triggerRef?.current && modalRef.current) {
@@ -995,7 +1128,7 @@ const ImportPopover: React.FC<ImportPopoverProps> = ({
         triggerRef?.current !== event.target && 
         !triggerRef?.current?.contains(event.target as Node)
       ) {
-        onClose();
+        // onClose(); // Removed to prevent closing on outside click
       }
     };
 
@@ -1079,12 +1212,12 @@ const SidebarItem: React.FC<{
   return (
     <button 
       onClick={onClick}
-      className={`w-full flex items-center space-x-3 p-3 rounded-md hover:bg-gray-100 text-gray-700 ${
+      className={`w-full flex items-center justify-center space-x-3 p-3 rounded-md hover:bg-gray-100 text-gray-700 transition-all duration-200 ${
         active ? 'bg-gray-100' : ''
       }`}
+      title={text}
     >
       <span className="text-xl">{icon}</span>
-      <span>{text}</span>
     </button>
   );
 };

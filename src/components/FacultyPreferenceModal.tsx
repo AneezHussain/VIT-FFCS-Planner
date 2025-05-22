@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { IoClose, IoArrowBack } from 'react-icons/io5';
 import { BiSolidUpvote, BiSolidDownvote } from 'react-icons/bi';
+import LabSlotModal from './LabSlotModal';
 
 interface FacultyPreferenceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (facultyPreferences: string[]) => void;
+  onSubmit: (facultyPreferences: string[], includeLabCourse?: boolean, facultyLabAssignments?: Map<string, string[]>) => void;
   courseName: string;
   initialFacultyPreferences?: string[];
+  allCurrentlyUsedSlots: string[];
+  slotConflictPairs: string[][];
 }
 
 const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
@@ -15,13 +18,25 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   onClose,
   onSubmit,
   courseName,
-  initialFacultyPreferences = []
+  initialFacultyPreferences = [],
+  allCurrentlyUsedSlots,
+  slotConflictPairs
 }) => {
   const [facultyName, setFacultyName] = useState('');
   const [facultyPreferences, setFacultyPreferences] = useState<string[]>([]);
   const [showInput, setShowInput] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
+  const [isLabModalOpen, setIsLabModalOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
 
   // Reset or initialize form when modal is opened
   useEffect(() => {
@@ -118,6 +133,37 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
     }
   };
 
+  const handleAddLabCourse = () => {
+    if (facultyName.trim()) {
+      // Add any faculty name currently in the input to the list before opening lab modal
+      const currentFaculty = facultyName.trim();
+      // Ensure not to add duplicates if the user typed something already in the list
+      if (!facultyPreferences.includes(currentFaculty)) {
+        setFacultyPreferences([...facultyPreferences, currentFaculty]);
+      }
+      setFacultyName(''); 
+    }
+    setIsLabModalOpen(true);
+  };
+
+  const handleLabModalClose = () => {
+    setIsLabModalOpen(false);
+  };
+
+  // This is called when "Add Lab Course (1 Credit)" is clicked in LabSlotModal
+  const handleLabModalSubmit = (facultyLabAssignments: Map<string, string[]>) => {
+    setIsLabModalOpen(false);
+    
+    let theoryFacultyPrefs = [...facultyPreferences]; // Use the current state
+    // If there was something in the input field when "Add Lab Course" was clicked on FacultyPreferenceModal,
+    // it should have been added to facultyPreferences by handleAddLabCourse.
+    // So, no need to check facultyName.trim() here again.
+
+    // Submit with includeLabCourse: true. Lab faculty preferences are not needed by this modal anymore.
+    // The Dashboard will handle setting the lab faculty to be the same as theory.
+    onSubmit(theoryFacultyPrefs, true, facultyLabAssignments); // Pass facultyLabAssignments Map
+  };
+
   const handleSkip = () => {
     onSubmit([]);
   };
@@ -132,12 +178,13 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   // Extract slot name from courseName for display
   const slotDisplay = courseName.includes(' ') ? courseName.split(' ').pop() : '';
   const courseNameDisplay = courseName.includes(' ') ? courseName.split(' ').slice(0, -1).join(' ') : courseName;
+  const theoryCourseSlots = slotDisplay ? slotDisplay.split('+').filter(Boolean) : [];
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm" onClick={onClose}></div>
+      <div className="fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm"></div>
       <div className="bg-white rounded-2xl p-8 w-[550px] max-h-[90vh] overflow-y-auto z-10 relative shadow-xl">
         <div className="flex items-center mb-6">
           {/* Back button */}
@@ -262,6 +309,12 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                 Cancel
               </button>
               <button
+                onClick={handleAddLabCourse}
+                className="px-6 py-3 rounded-lg text-sm font-medium text-white bg-green-500 hover:bg-green-600 transition-colors"
+              >
+                Add Lab Course
+              </button>
+              <button
                 onClick={handleSubmit}
                 className="confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors"
               >
@@ -278,6 +331,12 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                 Skip
               </button>
               <button
+                onClick={handleAddLabCourse}
+                className="px-6 py-3 rounded-lg text-sm font-medium text-white bg-green-500 hover:bg-green-600 transition-colors"
+              >
+                Add Lab Course
+              </button>
+              <button
                 onClick={handleSubmit}
                 className="confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors"
               >
@@ -287,6 +346,21 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Lab Course Modal */}
+      {isLabModalOpen && (
+        <LabSlotModal
+          isOpen={isLabModalOpen}
+          onClose={handleLabModalClose}
+          onSubmit={handleLabModalSubmit}
+          courseName={courseNameDisplay}
+          theorySlot={slotDisplay || ''}
+          theoryCourseActualSlots={theoryCourseSlots}
+          facultyPreferences={facultyPreferences}
+          allCurrentlyUsedSlots={allCurrentlyUsedSlots}
+          slotConflictPairs={slotConflictPairs}
+        />
+      )}
     </div>
   );
 };
