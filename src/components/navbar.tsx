@@ -7,6 +7,7 @@ interface NavbarProps {
   currentPage: string;
   importButtonRef: React.RefObject<HTMLButtonElement>;
   setIsImportModalOpen: (isOpen: boolean) => void;
+  onLogout: () => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -14,6 +15,7 @@ const Navbar: React.FC<NavbarProps> = ({
   currentPage,
   importButtonRef,
   setIsImportModalOpen,
+  onLogout,
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -75,7 +77,10 @@ const Navbar: React.FC<NavbarProps> = ({
                     </div>
                   </div>
                   <ul>
-                    <li className="flex items-center justify-center px-6 py-3 hover:bg-red-100 cursor-pointer text-red-600">
+                    <li 
+                      className="flex items-center justify-center px-6 py-3 hover:bg-gray-100 cursor-pointer text-red-600"
+                      onClick={onLogout}
+                    >
                       <AiOutlineLogout className="h-5 w-5 mr-3" />
                       <span className="text-sm font-medium">Logout</span>
                     </li>

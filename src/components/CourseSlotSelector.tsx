@@ -60,19 +60,23 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
 }) => {
   const [courseName, setCourseName] = useState('');
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
-  const [slotText, setSlotText] = useState('');
-  const [credits, setCredits] = useState(3); // Default to 3 credits
+  const [credits, setCredits] = useState(0); // Default to 0 credits
   const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
   const [tempCourseData, setTempCourseData] = useState<{courseName: string; selectedSlots: string[]; credits: number} | null>(null);
+  const [transientFacultyPreferences, setTransientFacultyPreferences] = useState<string[] | undefined>(undefined);
+  const [transientLabAssignments, setTransientLabAssignments] = useState<Map<string, string[]> | undefined>(undefined);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isFacultyModalOpen) { // If this modal is open and FacultyModal is NOT on top
       document.body.style.overflow = 'hidden';
+    } else if (!isOpen) { // If this modal itself is closing
+      document.body.style.overflow = 'auto'; // This is the outermost modal, so restore scroll
     }
-    return () => {
-      document.body.style.overflow = 'auto';
-    };
-  }, [isOpen]);
+    // If FacultyModal is open on top (isFacultyModalOpen is true), 
+    // FacultyPreferenceModal will handle the overflow for that state.
+    // No explicit cleanup is needed for the else if (isOpen && isFacultyModalOpen) case,
+    // as this effect will re-evaluate when isFacultyModalOpen changes.
+  }, [isOpen, isFacultyModalOpen]);
 
   // Reset form or populate with editing data when modal is opened
   useEffect(() => {
@@ -82,34 +86,32 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
         setCourseName(editingCourse.name);
         setSelectedSlots(editingCourse.slots);
         setCredits(editingCourse.credits);
-        setSlotText(editingCourse.slots.join('+'));
+        // Populate transient states from editingCourse
+        setTransientFacultyPreferences(editingCourse.facultyPreferences || []);
+        if (editingCourse.facultyLabAssignments) {
+          const labAssignmentsMap = new Map<string, string[]>();
+          editingCourse.facultyLabAssignments.forEach(assignment => {
+            labAssignmentsMap.set(assignment.facultyName, assignment.slots);
+          });
+          setTransientLabAssignments(labAssignmentsMap);
+        } else {
+          setTransientLabAssignments(undefined);
+        }
       } else {
         // Reset form for new entry
         setCourseName('');
         setSelectedSlots([]);
-        setCredits(3);
-        setSlotText('');
+        setCredits(0); // Reset to 0 for new entry
+        setTransientFacultyPreferences(undefined); // Clear transients for new entry
+        setTransientLabAssignments(undefined);
       }
-      setTempCourseData(null);
+      setTempCourseData(null); // tempCourseData is for details before opening faculty modal
     }
   }, [isOpen, editingCourse]);
 
   // Slot patterns - only theory slots
   const morningTheorySlots = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'TA1', 'TB1', 'TC1', 'TD1', 'TE1', 'TF1', 'TG1', 'TAA1', 'TCC1'];
   const eveningTheorySlots = ['A2', 'B2', 'C2', 'D2', 'E2', 'F2', 'G2', 'TA2', 'TB2', 'TC2', 'TD2', 'TE2', 'TF2', 'TAA2', 'TBB2', 'TCC2', 'TDD2'];
-
-  // Function to parse slot text and identify valid slots
-  const parseSlotText = (text: string) => {
-    // Split the input by + or space or comma
-    const inputSlots = text.split(/[+\s,]+/).filter(Boolean);
-    const allValidSlots = [...morningTheorySlots, ...eveningTheorySlots];
-    
-    // Filter to get only valid slots
-    const validSlots = inputSlots.filter(slot => allValidSlots.includes(slot));
-    
-    // Update the selected slots
-    setSelectedSlots(validSlots);
-  };
 
   const toggleSlot = (slot: string) => {
     // Don't allow selecting already taken slots, unless it's part of the course being edited
@@ -120,7 +122,6 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
       : [...selectedSlots, slot];
     
     setSelectedSlots(newSelectedSlots);
-    setSlotText(newSelectedSlots.join('+'));
   };
 
   // Function to check if a slot is already taken in other courses or conflicts with selected/existing
@@ -185,12 +186,19 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
     if (courseName && selectedSlots.length > 0) {
       // Submit course without faculty preferences
       // For editing, preserve existing faculty preferences if available
+      // If transientFacultyPreferences exist, they represent the latest state from Faculty Modal (even if just closed via back/cancel)
+      // If editing and no transientFacultyPreferences, use editingCourse.facultyPreferences
+      const facultyToSubmit = transientFacultyPreferences !== undefined ? transientFacultyPreferences : (editingCourse?.facultyPreferences || []);
+      const labsToSubmit = transientLabAssignments !== undefined ? transientLabAssignments : 
+        (editingCourse?.facultyLabAssignments ? new Map(editingCourse.facultyLabAssignments.map(a => [a.facultyName, a.slots])) : undefined);
+      
       onSubmit({
         courseName,
         selectedSlots,
         credits,
-        facultyPreferences: editingCourse?.facultyPreferences || [],
-        includeLabCourse: false
+        facultyPreferences: facultyToSubmit,
+        includeLabCourse: !!(labsToSubmit && labsToSubmit.size > 0 && facultyToSubmit.length > 0),
+        facultyLabAssignments: labsToSubmit
       });
       
       // Reset states and close modal
@@ -212,29 +220,36 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
         facultyLabAssignments: facultyLabAssignmentsFromModal
       });
       
-      resetForm();
+      resetForm(); // This will also clear transients
       setIsFacultyModalOpen(false);
     }
   };
 
   const handleCloseModal = () => {
     // Just close without saving any changes
-    resetForm();
+    resetForm(); // This will also clear transients
     onClose();
   };
 
-  const handleFacultyModalClose = () => {
-    // Close faculty modal without saving changes
+  const handleFacultyModalClose = (currentFacultyPreferences?: string[], currentLabAssignments?: Map<string, string[]>) => {
+    // Close faculty modal, store its current state in transients
+    if (currentFacultyPreferences !== undefined) {
+      setTransientFacultyPreferences(currentFacultyPreferences);
+    }
+    if (currentLabAssignments !== undefined) {
+      setTransientLabAssignments(currentLabAssignments);
+    }
     setIsFacultyModalOpen(false);
-    setTempCourseData(null);
+    // Do NOT reset tempCourseData here, so course name/slots/credits are retained
   };
 
   const resetForm = () => {
     setCourseName('');
     setSelectedSlots([]);
-    setCredits(3);
-    setSlotText('');
+    setCredits(0); // Reset credits to 0
     setTempCourseData(null);
+    setTransientFacultyPreferences(undefined); // Clear transients
+    setTransientLabAssignments(undefined);
   };
 
   // Get slot rows based on the preferred slot
@@ -276,33 +291,48 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
                 type="text"
                 value={courseName}
                 onChange={(e) => setCourseName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all"
                 placeholder="Enter course name"
               />
             </div>
             
             <div className="w-32">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="credits-input" className="block text-sm font-medium text-gray-700 mb-2">
                 Credits
               </label>
-              <div className="flex items-center border border-gray-300 rounded-lg">
+              <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => setCredits(prev => Math.max(1, prev - 1))}
-                  className="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-l-lg transition-colors"
+                  type="button"
+                  onClick={() => setCredits(prev => Math.max(0, prev - 1))}
+                  className="p-2 w-8 h-8 flex items-center justify-center text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
+                  aria-label="Decrease credits"
                 >
                   -
                 </button>
                 <input
-                  type="number"
-                  value={credits}
-                  onChange={(e) => setCredits(Math.max(1, Math.min(5, parseInt(e.target.value) || 1)))}
-                  className="w-12 text-center border-x border-gray-300 py-2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  min="1"
-                  max="5"
+                  id="credits-input"
+                  type="text"
+                  value={credits.toString()}
+                  maxLength={1}
+                  pattern="[0-5]"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setCredits(0);
+                    } else {
+                      // This logic correctly parses a single digit string and clamps it,
+                      // e.g., parseInt("a") || 0 is 0, parseInt("7") || 0 is 7, then clamped by Math.min(5, ...)
+                      setCredits(Math.max(0, Math.min(5, parseInt(val) || 0)));
+                    }
+                  }}
+                  className="w-10 text-center border border-gray-300 rounded-md py-1.5 focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                  aria-label="Credits value"
                 />
                 <button
+                  type="button"
                   onClick={() => setCredits(prev => Math.min(5, prev + 1))}
-                  className="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-r-lg transition-colors"
+                  className="p-2 w-8 h-8 flex items-center justify-center text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
+                  aria-label="Increase credits"
                 >
                   +
                 </button>
@@ -310,25 +340,11 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
             </div>
           </div>
 
-          {/* Slot Text Input */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Slot Pattern (e.g., A1+TG1)
-            </label>
-            <input
-              type="text"
-              value={slotText}
-              onChange={(e) => {
-                setSlotText(e.target.value);
-                parseSlotText(e.target.value);
-              }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              placeholder="Enter slot pattern (e.g., A1+TG1)"
-            />
-          </div>
-
           {/* Slots Grid */}
           <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Slots
+            </label>
             {getSlotRows().map((row, rowIndex) => (
               <div key={rowIndex} className="flex gap-2 mb-2">
                 {row.map(slot => (
@@ -337,9 +353,9 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
                     onClick={() => toggleSlot(slot)}
                     disabled={isSlotTaken(slot)}
                     className={`
-                      flex-1 p-3 rounded-lg text-sm font-medium transition-all
+                      flex-1 p-3 rounded-lg text-sm font-medium transition-all border border-transparent
                       ${selectedSlots.includes(slot)
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        ? 'bg-black text-white hover:bg-gray-800'
                         : isSlotTaken(slot)
                           ? 'bg-gray-400 text-gray-600 cursor-not-allowed opacity-70'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -382,25 +398,12 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
               // Show regular options for new course creation
               <>
                 <button
-                  onClick={handleSkipFaculty}
-                  disabled={!courseName || selectedSlots.length === 0}
-                  className={`
-                    px-4 py-3 text-sm font-medium transition-colors
-                    ${courseName && selectedSlots.length > 0
-                      ? 'text-gray-500 hover:text-gray-700'
-                      : 'text-gray-300 cursor-not-allowed'
-                    }
-                  `}
-                >
-                  Skip Faculty
-                </button>
-                <button
                   onClick={handleCourseDetailSubmit}
                   disabled={!courseName || selectedSlots.length === 0}
                   className={`
-                    px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors
+                    px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors
                     ${courseName && selectedSlots.length > 0
-                      ? 'bg-blue-500 hover:bg-blue-600'
+                      ? 'bg-black'
                       : 'bg-gray-300 cursor-not-allowed'
                     }
                   `}
@@ -420,7 +423,9 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
           onClose={handleFacultyModalClose}
           onSubmit={handleFacultyPreferenceSubmit}
           courseName={`${tempCourseData.courseName} ${tempCourseData.selectedSlots.join('+')}`}
-          initialFacultyPreferences={editingCourse ? editingCourse.facultyPreferences : []}
+          initialFacultyPreferences={transientFacultyPreferences !== undefined ? transientFacultyPreferences : (editingCourse ? editingCourse.facultyPreferences : [])}
+          initialFacultyLabAssignments={transientLabAssignments !== undefined ? transientLabAssignments : 
+            (editingCourse?.facultyLabAssignments ? new Map(editingCourse.facultyLabAssignments.map(a => [a.facultyName, a.slots])) : undefined)}
           allCurrentlyUsedSlots={existingSlots}
           slotConflictPairs={slotConflictPairs}
         />

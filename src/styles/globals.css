@@ -1,0 +1,33 @@
+.popper-arrow {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  visibility: hidden;
+}
+
+.popper-arrow::before {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: white;
+  visibility: visible;
+  content: '';
+  transform: rotate(45deg);
+}
+
+[data-popper-placement^='top'] > .popper-arrow {
+  bottom: -4px;
+}
+
+[data-popper-placement^='bottom'] > .popper-arrow {
+  top: -4px;
+}
+
+[data-popper-placement^='left'] > .popper-arrow {
+  right: -4px;
+}
+
+[data-popper-placement^='right'] > .popper-arrow {
+  left: -4px;
+} 

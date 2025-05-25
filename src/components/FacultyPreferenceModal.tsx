@@ -3,13 +3,15 @@ import { IoClose, IoArrowBack } from 'react-icons/io5';
 import { MdDragIndicator } from 'react-icons/md';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import LabSlotModal from './LabSlotModal';
+import { getSlotColor } from '../utils/colorUtils';
 
 interface FacultyPreferenceModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (currentFacultyPreferences?: string[], currentLabAssignments?: Map<string, string[]>) => void;
   onSubmit: (facultyPreferences: string[], includeLabCourse?: boolean, facultyLabAssignments?: Map<string, string[]>) => void;
   courseName: string;
   initialFacultyPreferences?: string[];
+  initialFacultyLabAssignments?: Map<string, string[]>;
   allCurrentlyUsedSlots: string[];
   slotConflictPairs: string[][];
 }
@@ -24,6 +26,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   onSubmit,
   courseName,
   initialFacultyPreferences = [],
+  initialFacultyLabAssignments,
   allCurrentlyUsedSlots,
   slotConflictPairs
 }) => {
@@ -41,6 +44,33 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [confirmedLabAssignments, setConfirmedLabAssignments] = useState<Map<string, string[]> | undefined>(undefined);
+
+  // Extract slot name from courseName for display
+  const slotDisplay = courseName.includes(' ') ? courseName.split(' ').pop() : '';
+
+  // Determine the base string for course name display (courseName without the slot part)
+  let baseNameToFilter = courseName;
+  if (slotDisplay) { // True if courseName had spaces and slotDisplay is the last word
+    const parts = courseName.split(' ');
+    // Ensure slotDisplay was indeed the last part and there were multiple parts initially
+    if (parts.length > 1 && parts[parts.length - 1] === slotDisplay) {
+      baseNameToFilter = parts.slice(0, -1).join(' ');
+    }
+    // If courseName was just the slotDisplay with spaces (e.g. " L1 L2 " and slotDisplay is "L2"),
+    // this logic might result in " L1". Subsequent split and filter will handle it.
+    // If courseName was exactly slotDisplay (e.g. "L1+L2" but slotDisplay captured it due to some space logic),
+    // baseNameToFilter might become empty or the part before slot if courseName="part slot".
+  }
+  // If slotDisplay is empty (e.g. courseName is "CSE1001" or "L1+L2" without internal spaces for pop),
+  // baseNameToFilter remains the original courseName.
+
+  const courseNameDisplay = baseNameToFilter
+    .split(' ')
+    .filter(part => part.trim() !== '' && !['Edit', 'Faculty', 'Lab', 'Add'].includes(part))
+    .join(' ');
+
+  const theoryCourseSlots = slotDisplay ? slotDisplay.split('+').filter(Boolean) : [];
 
   // Helper function to get all faculty preferences combined
   const getAllFacultyPreferences = (): string[] => {
@@ -51,15 +81,27 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     }
-    return () => {
-      document.body.style.overflow = 'auto';
-    };
-  }, [isOpen]);
+    // When FacultyPreferenceModal closes (isOpen becomes false), do NOT set document.body.style.overflow = 'auto'.
+    // The parent modal (CourseSlotSelectorModal) or this modal itself (if LabModal was closed) will manage it.
+    // No explicit cleanup needed here for overflow, as the logic is handled by the conditions above.
+  }, [isOpen, isLabModalOpen]);
+
+  // Auto-open lab modal if faculty preferences exist and we're adding a lab course
+  useEffect(() => {
+    if (isOpen && initialFacultyPreferences && initialFacultyPreferences.length > 0) {
+      const baseName = courseNameDisplay.includes(' ') ? courseNameDisplay.split(' ').slice(0, -1).join(' ') : courseNameDisplay;
+      // Check if this is a theory course and we're adding a lab
+      if (!baseName.endsWith(' Lab') && courseName.includes('Add Lab')) {
+        setIsLabModalOpen(true);
+      }
+    }
+  }, [isOpen, initialFacultyPreferences, courseNameDisplay, courseName]);
 
   // Reset or initialize form when modal is opened
   useEffect(() => {
     if (isOpen) {
       setFacultyName('');
+      setConfirmedLabAssignments(initialFacultyLabAssignments);
       
       // Split initial faculty preferences into left and right columns
       if (initialFacultyPreferences && initialFacultyPreferences.length > 0) {
@@ -73,7 +115,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
       setShowInput(true);
       setShowPreview(false);
     }
-  }, [isOpen, initialFacultyPreferences]);
+  }, [isOpen, initialFacultyPreferences, initialFacultyLabAssignments]);
 
   // Update useEffect for preview
   useEffect(() => {
@@ -126,7 +168,9 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
         
         // Keep input visible and focused
         if (inputRef.current) {
-          inputRef.current.focus();
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 50);
         }
       }
     }
@@ -178,14 +222,16 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
       console.log("Submitting with typed faculty added:", allPreferences);
     }
     
+    const includeLab = !!confirmedLabAssignments && confirmedLabAssignments.size > 0 && allPreferences.length > 0;
+
     if (allPreferences.length > 0) {
-      // Submit with existing faculty preferences
-      console.log("Submitting faculty:", allPreferences);
-      onSubmit(allPreferences);
+      console.log("Submitting faculty:", allPreferences, "Lab assignments:", confirmedLabAssignments);
+      onSubmit(allPreferences, includeLab, confirmedLabAssignments);
     } else {
-      // No faculty preferences
+      // No faculty preferences, but lab assignments might exist if faculty were removed after lab assignment
+      // However, labs without faculty don't make sense, so treat as no submission if no faculty.
       console.log("Submitting with no faculty");
-      onSubmit([]);
+      onSubmit([], false, undefined);
     }
   };
 
@@ -213,13 +259,16 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   };
 
   const handleLabModalSubmit = (facultyLabAssignments: Map<string, string[]>) => {
+    setConfirmedLabAssignments(facultyLabAssignments);
     setIsLabModalOpen(false);
-    // Submit with the combined faculty preferences
-    onSubmit(getAllFacultyPreferences(), true, facultyLabAssignments);
+    // DO NOT call props.onSubmit here anymore
   };
 
   const handleSkip = () => {
-    onSubmit([]);
+    // When skipping, we submit empty preferences and no lab course.
+    // We also indicate no preferences should be retained by calling onClose without arguments or with empty arrays.
+    onSubmit([], false, undefined); 
+    onClose([], undefined); // Pass empty to clear transient in parent
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -228,11 +277,6 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
       handleAddFaculty();
     }
   };
-
-  // Extract slot name from courseName for display
-  const slotDisplay = courseName.includes(' ') ? courseName.split(' ').pop() : '';
-  const courseNameDisplay = courseName.includes(' ') ? courseName.split(' ').slice(0, -1).join(' ') : courseName;
-  const theoryCourseSlots = slotDisplay ? slotDisplay.split('+').filter(Boolean) : [];
 
   const handleDragStart = () => {
     // Exit edit mode when dragging starts
@@ -367,24 +411,34 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
     }
   };
 
-  const shouldShowRightColumn = rightColumnFaculty.length > 0 || 
-                               (leftColumnFaculty.length >= 4 && showPreview) || 
-                               leftColumnFaculty.length >= 5;
+  const shouldShowRightColumn = isLabModalOpen 
+    ? rightColumnFaculty.length > 0 // Only show right column if it has faculty members when lab modal is open
+    : rightColumnFaculty.length > 0 || 
+      (leftColumnFaculty.length >= 4 && showPreview) || 
+      leftColumnFaculty.length >= 5;
   
   const totalFaculty = leftColumnFaculty.length + rightColumnFaculty.length;
 
   if (!isOpen) return null;
 
+  const isActionDisabled = getAllFacultyPreferences().length === 0 && facultyName.trim() === '';
+
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm"></div>
-      <div className={`bg-white rounded-2xl overflow-y-auto z-10 relative shadow-xl transition-all duration-300 ${
-        shouldShowRightColumn ? 'w-[900px] p-8 pb-4' : 'w-[550px] p-8'
-      }`}>
+      <div className={`fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm ${isLabModalOpen ? 'opacity-0' : ''}`}></div>
+      <div className={`faculty-preference-modal ${
+        shouldShowRightColumn 
+          ? 'w-[900px] p-8 pb-4' 
+          : 'w-[550px] p-8'
+      } ${
+        isLabModalOpen 
+          ? 'bg-transparent shadow-none pointer-events-none' 
+          : 'bg-white rounded-2xl shadow-xl'
+      } z-10 relative transition-all duration-300`}>
         <div className="flex items-center mb-6">
           {/* Back button */}
           <button 
-            onClick={onClose}
+            onClick={() => onClose(getAllFacultyPreferences(), confirmedLabAssignments)}
             className="text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1.5"
           >
             <IoArrowBack size={18} />
@@ -397,22 +451,8 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
         <p className="text-center mb-8 text-gray-600 flex items-center justify-center gap-3">
           Selected slot: <span className={`
             inline-block px-3 py-1 text-sm font-medium rounded-md
-            ${[
-              'bg-red-50 text-red-700',
-              'bg-blue-50 text-blue-700',
-              'bg-green-50 text-green-700',
-              'bg-yellow-50 text-yellow-700',
-              'bg-purple-50 text-purple-700',
-              'bg-pink-50 text-pink-700',
-              'bg-indigo-50 text-indigo-700',
-              'bg-orange-50 text-orange-700',
-              'bg-teal-50 text-teal-700',
-              'bg-cyan-50 text-cyan-700',
-              'bg-lime-50 text-lime-700',
-              'bg-amber-50 text-amber-700'
-            ][Math.abs(courseNameDisplay.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 12]
-          }`}
-          >
+            ${getSlotColor(courseNameDisplay)}
+          `}>
             {slotDisplay}
           </span>
           <span className="flex items-center space-x-1 bg-gray-100 rounded-lg px-2 py-1">
@@ -504,7 +544,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
               </Droppable>
 
               {/* Input box in left column - outside the Droppable area */}
-              {leftColumnFaculty.length < 5 && totalFaculty < 10 && (
+              {!isLabModalOpen && leftColumnFaculty.length < 5 && totalFaculty < 10 && (
                 <div className={`px-2 ${inputContainerClass}`}>
                   <div className={inputNumberClass}>
                     {leftColumnFaculty.length + 1}
@@ -542,7 +582,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
               )}
 
               {/* Preview in left column - outside the Droppable area */}
-              {showPreview && leftColumnFaculty.length < 4 && (
+              {!isLabModalOpen && showPreview && leftColumnFaculty.length < 4 && (
                 <div className="flex items-center mb-5 relative px-2">
                   <div className="flex items-center justify-center h-9 w-9 rounded-full bg-gray-100 text-gray-400 font-medium mr-3">
                     {leftColumnFaculty.length + 2}
@@ -634,8 +674,8 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                   )}
                 </Droppable>
 
-                {/* Input box in right column - outside the Droppable area */}
-                {leftColumnFaculty.length >= 5 && rightColumnFaculty.length < 5 && totalFaculty < 10 && (
+                {/* Input box in right column - only show when lab modal is not open */}
+                {!isLabModalOpen && leftColumnFaculty.length >= 5 && rightColumnFaculty.length < 5 && totalFaculty < 10 && (
                   <div className={`px-2 ${inputContainerClass}`}>
                     <div className={inputNumberClass}>
                       {totalFaculty + 1}
@@ -672,8 +712,8 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                   </div>
                 )}
 
-                {/* Preview in right column - outside the Droppable area */}
-                {showPreview && ((leftColumnFaculty.length === 4) || (leftColumnFaculty.length >= 5 && rightColumnFaculty.length < 4)) && (
+                {/* Preview in right column - only show when lab modal is not open */}
+                {!isLabModalOpen && showPreview && ((leftColumnFaculty.length === 4) || (leftColumnFaculty.length >= 5 && rightColumnFaculty.length < 4)) && (
                   <div className="flex items-center mb-5 relative px-2">
                     <div className="flex items-center justify-center h-9 w-9 rounded-full bg-gray-100 text-gray-400 font-medium mr-3">
                       {totalFaculty + 2}
@@ -698,20 +738,30 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
             // When editing (has initial preferences), show only Cancel/Confirm
             <>
               <button
-                onClick={onClose}
+                onClick={() => onClose(getAllFacultyPreferences(), confirmedLabAssignments)}
                 className="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddLabCourse}
-                className="px-6 py-3 rounded-lg text-sm font-medium text-white bg-green-500 hover:bg-green-600 transition-colors"
+                disabled={isActionDisabled}
+                className={`px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors ${
+                  isActionDisabled 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-green-500 hover:bg-green-600'
+                }`}
               >
                 Add Lab Course
               </button>
               <button
                 onClick={handleSubmit}
-                className="confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors"
+                disabled={isActionDisabled}
+                className={`confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors ${
+                  isActionDisabled 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-black'
+                }`}
               >
                 Confirm
               </button>
@@ -727,13 +777,23 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
               </button>
               <button
                 onClick={handleAddLabCourse}
-                className="px-6 py-3 rounded-lg text-sm font-medium text-white bg-green-500 hover:bg-green-600 transition-colors"
+                disabled={isActionDisabled}
+                className={`px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors ${
+                  isActionDisabled 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-green-500 hover:bg-green-600'
+                }`}
               >
                 Add Lab Course
               </button>
               <button
                 onClick={handleSubmit}
-                className="confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors"
+                disabled={isActionDisabled}
+                className={`confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors ${
+                  isActionDisabled 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-black'
+                }`}
               >
                 Confirm
               </button>
@@ -754,6 +814,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
           facultyPreferences={getAllFacultyPreferences()}
           allCurrentlyUsedSlots={allCurrentlyUsedSlots}
           slotConflictPairs={slotConflictPairs}
+          slotColor={getSlotColor(courseNameDisplay)}
         />
       )}
     </div>

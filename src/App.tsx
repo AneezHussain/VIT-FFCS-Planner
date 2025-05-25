@@ -22,10 +22,14 @@ function App() {
     setIsAuthenticated(true);
   };
 
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+  };
+
   if (isAuthenticated) {
     return (
       <div>
-        <Dashboard />
+        <Dashboard onLogout={handleLogout} />
       </div>
     );
   }

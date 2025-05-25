@@ -10,11 +10,11 @@ import Communities from './Communities';
 import TimeTableModal from './TimeTableModal';
 import FacultyPreferenceModal from './FacultyPreferenceModal';
 import ExportModal from './ExportModal';
-import CustomPreferredSlotModal from './CustomPreferredSlotModal';
 import FacultyList from './FacultyList';
 import Navbar from './navbar';
 import Sidebar from './Sidebar';
 import CourseCards from './CourseCards';
+import TimeTableSlotSelector from './TimeTableSlotSelector';
 
 // Define slot conflicts centrally here or import from a shared utility
 const slotConflictPairs = [
@@ -43,13 +43,16 @@ interface Course {
   facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>;
 }
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onLogout: () => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [semesterName, setSemesterName] = useState('');
   const [courses, setCourses] = useState<Course[]>([]);
-  const [preferredSlot, setPreferredSlot] = useState<'morning' | 'evening' | 'custom'>('morning');
   const [isTimeTableModalOpen, setTimeTableModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -58,11 +61,11 @@ const Dashboard: React.FC = () => {
   const [tempCourseData, setTempCourseData] = useState<{ courseName: string; selectedSlots: string[]; credits: number } | null>(null);
   const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
   const [editingCourseIndex, setEditingCourseIndex] = useState<number | null>(null);
-  const [isCustomSlotModalOpen, setIsCustomSlotModalOpen] = useState(false);
-  const [customActiveTab, setCustomActiveTab] = useState<'theory-morning' | 'theory-evening' | 'lab-morning' | 'lab-evening'>('theory-morning');
+  const [isTimeTableSlotModalOpen, setIsTimeTableSlotModalOpen] = useState(false);
   const [hideNavbar, setHideNavbar] = useState(false);
   const prevScrollPos = useRef(0);
   const [facultySearchQuery, setFacultySearchQuery] = useState('');
+  const [preferredSlot, setPreferredSlot] = useState<'morning' | 'evening' | 'custom'>('morning');
 
   // Refs for the import, export, and Google Drive buttons
   const exportButtonRef = useRef<HTMLButtonElement>(null);
@@ -332,75 +335,33 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Handle custom slot modal submission
-  const handleCustomSlotSubmit = (data: { 
+  // Handle TimeTableSlot submission
+  const handleTimeTableSlotSubmit = (data: { 
     courseName: string; 
     selectedSlots: string[]; 
     credits: number;
-    facultyPreferences?: string[];
-    includeLabCourse?: boolean;
-    facultyLabAssignments?: Map<string, string[]>
   }) => {
     let updatedCourses = [...courses];
-    const theoryFacultyPrefs = data.facultyPreferences || [];
-    const facultyLabAssignmentsArray = data.facultyLabAssignments
-      ? Array.from(data.facultyLabAssignments.entries()).map(([facultyName, slots]) => ({ facultyName, slots }))
-      : undefined;
 
     if (editingCourseIndex !== null) {
       updatedCourses[editingCourseIndex] = { 
         ...updatedCourses[editingCourseIndex],
         name: data.courseName, 
         slots: data.selectedSlots, 
-        credits: data.credits, 
-        facultyPreferences: theoryFacultyPrefs,
-        facultyLabAssignments: facultyLabAssignmentsArray || updatedCourses[editingCourseIndex].facultyLabAssignments
+        credits: data.credits
       };
-      
-      if (data.includeLabCourse) {
-        const labCourse: Course = {
-          name: `${data.courseName} Lab`,
-          slots: data.selectedSlots, 
-          credits: 1, 
-          facultyPreferences: theoryFacultyPrefs, 
-          facultyLabAssignments: facultyLabAssignmentsArray 
-        };
-        const existingLabIndex = updatedCourses.findIndex(c => c.name === labCourse.name);
-        if (existingLabIndex !== -1) {
-          updatedCourses[existingLabIndex] = { ...updatedCourses[existingLabIndex], ...labCourse };
-        } else {
-          updatedCourses.push(labCourse);
-        }
-      }
       setEditingCourseIndex(null);
     } else {
       const newTheoryCourse: Course = {
         name: data.courseName, 
         slots: data.selectedSlots, 
-        credits: data.credits, 
-        facultyPreferences: theoryFacultyPrefs,
+        credits: data.credits
       };
       updatedCourses.push(newTheoryCourse);
-
-      if (data.includeLabCourse) {
-        const newLabCourse: Course = {
-          name: `${data.courseName} Lab`,
-          slots: data.selectedSlots, 
-          credits: 1, 
-          facultyPreferences: theoryFacultyPrefs, 
-          facultyLabAssignments: facultyLabAssignmentsArray 
-        };
-        updatedCourses.push(newLabCourse);
-      }
     }
+    
     setCourses(updatedCourses);
-    setIsCustomSlotModalOpen(false);
-  };
-
-  // Handle custom slot modal tab change
-  const handleCustomTabChange = (tab: 'theory-morning' | 'theory-evening' | 'lab-morning' | 'lab-evening') => {
-    setCustomActiveTab(tab);
-    // Keep 'custom' selected in the preferredSlot while updating the custom tab
+    setIsTimeTableSlotModalOpen(false);
   };
 
   // Add getAllSelectedSlots function
@@ -428,7 +389,7 @@ const Dashboard: React.FC = () => {
     setEditingCourseIndex(index);
     // Open the appropriate modal based on selected preference
     if (preferredSlot === 'custom') {
-      setIsCustomSlotModalOpen(true);
+      setIsTimeTableSlotModalOpen(true);
     } else {
       setIsCourseModalOpen(true);
     }
@@ -444,7 +405,28 @@ const Dashboard: React.FC = () => {
       credits: course.credits,
     };
     setTempCourseData(tempData);
-    setIsFacultyModalOpen(true);
+
+    // If it's a lab course, open the lab slot modal directly
+    if (course.name.endsWith(' Lab')) {
+      // Find the theory course to get its slots
+      const theoryCourse = courses.find(c => c.name === course.name.replace(' Lab', ''));
+      if (theoryCourse) {
+        setTempCourseData({
+          ...tempData,
+          courseName: `${theoryCourse.name} Edit Lab`,  // Add action identifier
+          selectedSlots: theoryCourse.slots,
+          credits: theoryCourse.credits,
+        });
+      }
+      setIsFacultyModalOpen(true);
+    } else {
+      // For theory courses, indicate we're editing faculty
+      setTempCourseData({
+        ...tempData,
+        courseName: `${course.name} Edit Faculty`  // Add action identifier
+      });
+      setIsFacultyModalOpen(true);
+    }
   };
 
   // Handle Add Course
@@ -452,9 +434,50 @@ const Dashboard: React.FC = () => {
     setEditingCourseIndex(null);
     // Open the appropriate modal based on selected preference
     if (preferredSlot === 'custom') {
-      setIsCustomSlotModalOpen(true);
+      setIsTimeTableSlotModalOpen(true);
     } else {
       setIsCourseModalOpen(true);
+    }
+  };
+
+  // Handle Add Lab
+  const handleAddLab = (index: number) => {
+    const theoryCourse = courses[index];
+    setEditingCourseIndex(index);
+    
+    // If no faculty preferences exist, go to faculty preference modal first
+    if (!theoryCourse.facultyPreferences || theoryCourse.facultyPreferences.length === 0) {
+      const tempData = {
+        courseName: `${theoryCourse.name} Add Lab`,  // Add action identifier
+        selectedSlots: theoryCourse.slots,
+        credits: theoryCourse.credits,
+      };
+      setTempCourseData(tempData);
+      setIsFacultyModalOpen(true);
+    } else {
+      // Faculty preferences exist, check if lab course exists
+      const labCourseName = `${theoryCourse.name} Lab`;
+      const existingLabCourse = courses.find(c => c.name === labCourseName);
+      
+      if (existingLabCourse) {
+        // Lab course exists, go directly to lab slot modal through faculty modal
+        const tempData = {
+          courseName: `${theoryCourse.name} Add Lab`,  // Add action identifier
+          selectedSlots: theoryCourse.slots,
+          credits: theoryCourse.credits,
+        };
+        setTempCourseData(tempData);
+        setIsFacultyModalOpen(true);
+      } else {
+        // No lab course exists yet, go to faculty modal first
+        const tempData = {
+          courseName: `${theoryCourse.name} Add Lab`,  // Add action identifier
+          selectedSlots: theoryCourse.slots,
+          credits: theoryCourse.credits,
+        };
+        setTempCourseData(tempData);
+        setIsFacultyModalOpen(true);
+      }
     }
   };
 
@@ -518,45 +541,45 @@ const Dashboard: React.FC = () => {
                       <button
                         onClick={() => {
                           setPreferredSlot('morning');
-                          setIsCustomSlotModalOpen(false);
+                          setIsTimeTableSlotModalOpen(false);
                         }}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${ 
                           preferredSlot === 'morning'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-gray-600'
+                            ? 'bg-white shadow-sm text-black' 
+                            : 'text-black' 
                         }`}
                       >
-                        <BsSun className={`${preferredSlot === 'morning' ? 'text-blue-500' : 'text-gray-400'}`} />
-                        <span>Morning</span>
+                        <BsSun className="text-black" />
+                        <span className="text-black">Morning</span>
                       </button>
                       <div className="w-px h-5 bg-gray-300"></div>
                       <button
                         onClick={() => {
                           setPreferredSlot('evening');
-                          setIsCustomSlotModalOpen(false);
+                          setIsTimeTableSlotModalOpen(false);
                         }}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${ 
                           preferredSlot === 'evening'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-gray-600'
+                            ? 'bg-white shadow-sm text-black' 
+                            : 'text-black'  
                         }`}
                       >
-                        <BsMoonStars className={`${preferredSlot === 'evening' ? 'text-blue-500' : 'text-gray-400'}`} />
-                        <span>Evening</span>
+                        <BsMoonStars className="text-black" />
+                        <span className="text-black">Evening</span>
                       </button>
                       <div className="w-px h-5 bg-gray-300"></div>
                       <button
                         onClick={() => {
                           setPreferredSlot('custom');
                         }}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${ 
                           preferredSlot === 'custom'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-gray-600'
+                            ? 'bg-white shadow-sm text-black' 
+                            : 'text-black'  
                         }`}
                       >
-                        <AiOutlineSetting className="mr-1" size={16} />
-                        <span>Custom</span>
+                        <AiOutlineSetting className="mr-1 text-black" size={16} />
+                        <span className="text-black">Custom</span>
                       </button>
                     </div>
                   </div>
@@ -596,6 +619,7 @@ const Dashboard: React.FC = () => {
                   onEditFaculty={handleEditFaculty}
                   onDeleteCourse={handleDeleteCourse}
                   onAddCourse={handleAddCourse}
+                  onAddLab={handleAddLab}
                 />
               </div>
             </div>
@@ -631,20 +655,18 @@ const Dashboard: React.FC = () => {
               existingSlots={getAllSelectedSlots()}
             />
 
-            {/* Custom Slot Modal */}
-            <CustomPreferredSlotModal
-              isOpen={isCustomSlotModalOpen}
+            {/* TimeTableSlot Modal */}
+            <TimeTableSlotSelector
+              isOpen={isTimeTableSlotModalOpen}
               onClose={() => {
-                setIsCustomSlotModalOpen(false);
+                setIsTimeTableSlotModalOpen(false);
                 setEditingCourseIndex(null);
               }}
-              onSubmit={handleCustomSlotSubmit}
-              onTabChange={handleCustomTabChange}
-              activeTab={customActiveTab}
-              existingSlots={getAllSelectedSlots().filter((slot: string) => 
-                editingCourseIndex === null || !courses[editingCourseIndex].slots.includes(slot)
+              onSubmit={handleTimeTableSlotSubmit}
+              otherCoursesData={courses.filter((course, index) => 
+                editingCourseIndex === null || index !== editingCourseIndex
               )}
-              editingCourse={editingCourseIndex !== null ? courses[editingCourseIndex] : undefined}
+              slotConflictPairs={slotConflictPairs}
             />
 
             {/* Faculty Preference Modal */}
@@ -690,6 +712,7 @@ const Dashboard: React.FC = () => {
         currentPage={currentPage}
         importButtonRef={importButtonRef}
         setIsImportModalOpen={setIsImportModalOpen}
+        onLogout={onLogout}
       />
 
       {/* Sidebar */}

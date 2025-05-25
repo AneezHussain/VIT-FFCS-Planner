@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { IoArrowBack } from 'react-icons/io5';
 import { AiOutlinePlus, AiOutlineEdit } from 'react-icons/ai';
 import FacultyLabSlotSelectorModal from './FacultyLabSlotSelectorModal';
+import SlotSelector from './SlotSelector';
 
 // Define available lab slots
 const MORNING_LAB_SLOTS = Array.from({ length: 30 }, (_, i) => `L${i + 1}`); // L1-L30
@@ -17,6 +18,7 @@ interface LabSlotModalProps {
   facultyPreferences: string[];
   allCurrentlyUsedSlots: string[];
   slotConflictPairs: string[][];
+  slotColor: string;
 }
 
 const LabSlotModal: React.FC<LabSlotModalProps> = ({
@@ -28,7 +30,8 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
   theoryCourseActualSlots,
   facultyPreferences,
   allCurrentlyUsedSlots,
-  slotConflictPairs
+  slotConflictPairs,
+  slotColor
 }) => {
   const labCourseName = `${courseName} Lab`;
   // State to hold faculty-specific lab slots. Key: facultyName, Value: string[] of lab slots
@@ -39,6 +42,10 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
   const [popupAnchorElement, setPopupAnchorElement] = useState<HTMLElement | null>(null);
   const [currentFacultyForPopup, setCurrentFacultyForPopup] = useState<string>('');
   const [slotsToOfferInPopup, setSlotsToOfferInPopup] = useState<string[]>([]);
+  const [slotSelectorAnchorEl, setSlotSelectorAnchorEl] = useState<HTMLElement | null>(null);
+
+  // Add state for pre-selected slots
+  const [preSelectedSlots, setPreSelectedSlots] = useState<string[]>([]);
 
   const determineAvailableLabSlots = (): string[] => {
     // If any theory slot ends with '1' (morning theory), offer evening labs (L31-L60)
@@ -47,17 +54,25 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
     return isMorningTheory ? EVENING_LAB_SLOTS : MORNING_LAB_SLOTS;
   };
 
+  const isMorningTheory = theoryCourseActualSlots.some(slot => slot.endsWith('1') && (slot.startsWith('T') || /^[A-Z]1$/.test(slot)));
+
   const handleAssignSlotsClick = (event: React.MouseEvent<HTMLButtonElement>, facultyName: string) => {
     setCurrentFacultyForPopup(facultyName);
     setSlotsToOfferInPopup(determineAvailableLabSlots());
-    setPopupAnchorElement(event.currentTarget);
-    setIsFacultyLabSlotPopupOpen(true);
+    setSlotSelectorAnchorEl(event.currentTarget);
+    
+    // Pre-select previously chosen slots
+    const previouslySelectedSlots = facultySpecificLabSlots.get(facultyName) || [];
+    if (previouslySelectedSlots.length > 0) {
+      // We'll pass these pre-selected slots to the SlotSelector component
+      setPreSelectedSlots(previouslySelectedSlots);
+    }
   };
 
-  const handleFacultyLabSlotPopupClose = () => {
-    setIsFacultyLabSlotPopupOpen(false);
-    setPopupAnchorElement(null);
+  const handleSlotSelectorClose = () => {
+    setSlotSelectorAnchorEl(null);
     setCurrentFacultyForPopup('');
+    setPreSelectedSlots([]);
   };
 
   const handleFacultyLabSlotPopupSubmit = (selectedSlots: string[]) => {
@@ -68,26 +83,45 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
       updatedMap.delete(currentFacultyForPopup); // Remove entry if no slots selected
     }
     setFacultySpecificLabSlots(updatedMap);
-    handleFacultyLabSlotPopupClose();
+    handleSlotSelectorClose();
   };
   
   const mainModalRef = useRef<HTMLDivElement>(null); // Ref for the main modal div
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden'; // LabModal is top-most.
+        const facultyPrefModal = document.querySelector('.faculty-preference-modal');
+        if (facultyPrefModal) {
+            facultyPrefModal.classList.add('lab-modal-open');
+        }
     }
+    // When LabModal closes (isOpen becomes false), do NOT set document.body.style.overflow = 'auto'.
+    // The parent modal (FacultyPreferenceModal) will manage the overflow.
     return () => {
-      document.body.style.overflow = 'auto';
+        const facultyPrefModal = document.querySelector('.faculty-preference-modal');
+        if (facultyPrefModal) {
+            facultyPrefModal.classList.remove('lab-modal-open');
+        }
     };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const isConfirmLabDetailsDisabled = facultyPreferences.length > 0 &&
+    !facultyPreferences.every(facultyName => {
+        const assignedSlots = facultySpecificLabSlots.get(facultyName);
+        return assignedSlots && assignedSlots.length > 0;
+    });
+
   return (
-    <div ref={mainModalRef} className="fixed inset-0 flex items-center justify-center z-50">
+    <div ref={mainModalRef} className="fixed inset-0 flex items-center justify-center z-[60]">
       <div className="fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm"></div>
-      <div className="bg-white rounded-2xl p-8 w-[600px] max-h-[90vh] overflow-y-auto z-10 relative shadow-xl">
+      <div className={`bg-white rounded-2xl p-7 z-10 relative shadow-xl transition-all duration-300 translate-y-4 ${
+        facultyPreferences.length > 5 
+          ? 'w-[900px]' 
+          : 'w-[550px]'
+      }`}>
         <div className="flex items-center mb-6">
           <button 
             onClick={onClose}
@@ -101,56 +135,93 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
         <h2 className="text-2xl font-semibold text-gray-900 mb-2 text-center">Lab Slots for "{labCourseName}"</h2>
         
         <p className="text-center mb-8 text-gray-600 flex items-center justify-center gap-3">
-          Selected slot: <span className={`
+          Theory slot: <span className={`
             inline-block px-3 py-1 text-sm font-medium rounded-md
-            ${[
-              'bg-red-50 text-red-700',
-              'bg-blue-50 text-blue-700',
-              'bg-green-50 text-green-700',
-              'bg-yellow-50 text-yellow-700',
-              'bg-purple-50 text-purple-700',
-              'bg-pink-50 text-pink-700',
-              'bg-indigo-50 text-indigo-700',
-              'bg-orange-50 text-orange-700',
-              'bg-teal-50 text-teal-700',
-              'bg-cyan-50 text-cyan-700',
-              'bg-lime-50 text-lime-700',
-              'bg-amber-50 text-amber-700'
-            ][Math.abs(labCourseName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 12]
-          }`}
-          >
+            ${slotColor}
+          `}>
             {theorySlot}
+          </span>
+          <span className="flex items-center space-x-1 bg-gray-100 rounded-lg px-2 py-1">
+            <span className="text-xs text-gray-500">Credits:</span>
+            <span className="text-sm font-medium text-gray-900">1</span>
           </span>
         </p>
         
         {facultyPreferences && facultyPreferences.length > 0 ? (
-          <div className="mb-6 px-2 space-y-3">
-            {facultyPreferences.map((faculty, index) => {
-              const assignedSlotsArray = facultySpecificLabSlots.get(faculty);
-              const assignedSlotsString = assignedSlotsArray && assignedSlotsArray.length > 0 ? assignedSlotsArray.join('+') : null;
-              return (
-                <div key={index} className="flex items-center p-3 border border-gray-200 rounded-lg hover:shadow-sm transition-all">
-                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-blue-100 text-blue-700 font-medium text-sm mr-4">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-800">{faculty}</div>
-                    {assignedSlotsString ? (
-                      <div className="text-xs text-blue-600 font-medium mt-1">Lab Slots: {assignedSlotsString}</div>
-                    ) : (
-                      <div className="text-xs text-gray-500 italic mt-1">No lab slots assigned</div>
-                    )}
-                  </div>
-                  <button
-                    onClick={(e) => handleAssignSlotsClick(e, faculty)}
-                    className="p-2 rounded-md hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors ml-3"
-                    title={assignedSlotsString ? "Edit lab slots" : "Add lab slots"}
-                  >
-                    {assignedSlotsString ? <AiOutlineEdit size={20} /> : <AiOutlinePlus size={20} />}
-                  </button>
+          <div className="flex mb-8 gap-x-6">
+            {/* Left Column */}
+            <div className="flex-1">
+              <div className="px-2">
+                {facultyPreferences.slice(0, 5).map((faculty, index) => {
+                  const assignedSlotsArray = facultySpecificLabSlots.get(faculty);
+                  const assignedSlotsString = assignedSlotsArray && assignedSlotsArray.length > 0 ? assignedSlotsArray.join('+') : null;
+                  return (
+                    <div key={index} className="flex items-center relative transition-all duration-200 mb-5">
+                      <div className="flex items-center justify-center h-9 w-9 rounded-full bg-blue-100 text-blue-700 font-medium mr-3">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div className="relative py-3 px-4 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors group">
+                          <div className="flex justify-between items-center">
+                            <span>{faculty}</span>
+                            {assignedSlotsString && (
+                              <div className={`text-xs px-2.5 py-1.5 ml-3 rounded-md font-medium ${
+                                index === 0 ? slotColor : 'bg-gray-50 text-gray-700'
+                              }`}>
+                                {assignedSlotsString}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => handleAssignSlotsClick(e, faculty)}
+                        className="ml-3 text-gray-500 hover:text-blue-600 transition-transform hover:scale-110"
+                      >
+                        {assignedSlotsString ? <AiOutlineEdit size={24} /> : <AiOutlinePlus size={24} />}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right Column - Only show if there are more than 5 faculties */}
+            {facultyPreferences.length > 5 && (
+              <div className="flex-1">
+                <div className="px-2">
+                  {facultyPreferences.slice(5).map((faculty, index) => {
+                    const assignedSlotsArray = facultySpecificLabSlots.get(faculty);
+                    const assignedSlotsString = assignedSlotsArray && assignedSlotsArray.length > 0 ? assignedSlotsArray.join('+') : null;
+                    return (
+                      <div key={index} className="flex items-center relative transition-all duration-200 mb-5">
+                        <div className="flex items-center justify-center h-9 w-9 rounded-full bg-blue-100 text-blue-700 font-medium mr-3">
+                          {index + 6}
+                        </div>
+                        <div className="flex-1">
+                          <div className="relative py-3 px-4 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors group">
+                            <div className="flex justify-between items-center">
+                              <span>{faculty}</span>
+                              {assignedSlotsString && (
+                                <div className="text-xs bg-gray-50 text-gray-700 px-2.5 py-1.5 ml-3 rounded-md font-medium">
+                                  {assignedSlotsString}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => handleAssignSlotsClick(e, faculty)}
+                          className="ml-3 text-gray-500 hover:text-blue-600 transition-transform hover:scale-110"
+                        >
+                          {assignedSlotsString ? <AiOutlineEdit size={24} /> : <AiOutlinePlus size={24} />}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
         ) : (
            <p className="text-gray-600 mb-6 text-center px-2">
@@ -158,11 +229,11 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
            </p>
         )}
 
-        <p className="text-xs text-gray-500 mb-6 text-center px-2">
-          The lab course will be created with <strong>1 credit</strong>. Specific lab slots can be assigned per faculty.
+        <p className="text-xs text-gray-500 mb-5 text-center px-2">
+          Specific lab slots can be assigned per faculty.
         </p>
 
-        <div className="flex justify-end space-x-3 mt-8">
+        <div className="flex justify-end space-x-3 mt-5 pb-2">
           <button
             onClick={onClose}
             className="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
@@ -171,7 +242,12 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
           </button>
           <button
             onClick={() => onSubmit(facultySpecificLabSlots)}
-            className="confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors"
+            disabled={isConfirmLabDetailsDisabled}
+            className={`confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors ${
+              isConfirmLabDetailsDisabled
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600'
+            }`}
           >
             Confirm Lab Details
           </button>
@@ -179,17 +255,20 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
       </div>
       
       {/* Faculty Lab Slot Selector Pop-up */}
-      <FacultyLabSlotSelectorModal
-        isOpen={isFacultyLabSlotPopupOpen}
-        onClose={handleFacultyLabSlotPopupClose}
-        onSubmit={handleFacultyLabSlotPopupSubmit}
-        anchorElement={popupAnchorElement}
-        availableLabSlots={slotsToOfferInPopup}
-        currentSelectedSlots={facultySpecificLabSlots.get(currentFacultyForPopup) || []}
-        facultyName={currentFacultyForPopup}
-        externallyBlockedSlots={allCurrentlyUsedSlots}
-        isFirstFaculty={facultyPreferences.length > 0 && facultyPreferences[0] === currentFacultyForPopup}
+      <SlotSelector
+        isOpen={Boolean(slotSelectorAnchorEl)}
+        onClose={handleSlotSelectorClose}
+        onSelect={(selectedSlots) => {
+          handleFacultyLabSlotPopupSubmit(selectedSlots);
+          handleSlotSelectorClose();
+        }}
+        referenceElement={slotSelectorAnchorEl}
+        placement="right-start"
+        isMorningTheory={isMorningTheory}
+        isFirstFaculty={facultyPreferences.length > 0 && currentFacultyForPopup === facultyPreferences[0]}
+        blockedSlots={allCurrentlyUsedSlots}
         slotConflictPairs={slotConflictPairs}
+        preSelectedSlots={preSelectedSlots}
       />
     </div>
   );
