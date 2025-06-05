@@ -17,6 +17,7 @@ interface CourseCardsProps {
   onDeleteCourse: (index: number) => void;
   onAddCourse: () => void;
   onAddLab: (index: number) => void;
+  blockedSlots: string[];
 }
 
 const CourseCards: React.FC<CourseCardsProps> = ({
@@ -25,7 +26,8 @@ const CourseCards: React.FC<CourseCardsProps> = ({
   onEditFaculty,
   onDeleteCourse,
   onAddCourse,
-  onAddLab
+  onAddLab,
+  blockedSlots
 }) => {
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
   // Ref for expanded card to check for clicks outside
@@ -47,6 +49,13 @@ const CourseCards: React.FC<CourseCardsProps> = ({
   }, [expandedCard]);
 
   const getBaseCourseName = (name: string) => name.replace(/ Lab$/, '');
+
+  // Helper function to check if slots are blocked
+  const checkSlotsBlocked = (slots: string | null, blockedSlotsList: string[]): boolean => {
+    if (!slots) return false;
+    const individualSlots = slots.split('+');
+    return individualSlots.some(slot => blockedSlotsList.includes(slot));
+  };
 
   return (
     <div>
@@ -185,6 +194,12 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                             labSlotsForFaculty = assignment.slots.join('+');
                           }
                         }
+                        
+                        let slotColorClass = '';
+                        if (facultyIndex > 0 && labSlotsForFaculty) {
+                          slotColorClass = checkSlotsBlocked(labSlotsForFaculty, blockedSlots) ? 'text-red-600' : 'text-green-600';
+                        }
+
                         return (
                           <div key={facultyIndex} className="flex items-center">
                             <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
@@ -192,7 +207,7 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                             </div>
                             <div className="text-sm font-medium text-gray-900">{faculty}</div>
                             {labSlotsForFaculty && (
-                              <span className="ml-2 text-xs">
+                              <span className={`ml-2 text-xs ${slotColorClass}`}>
                                 {labSlotsForFaculty}
                               </span>
                             )}
@@ -263,6 +278,12 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                             labSlotsForFaculty = assignment.slots.join('+');
                           }
                         }
+
+                        let slotColorClass = '';
+                        if (facultyIndex > 0 && labSlotsForFaculty) {
+                          slotColorClass = checkSlotsBlocked(labSlotsForFaculty, blockedSlots) ? 'text-red-600' : 'text-green-600';
+                        }
+
                         return (
                           <div key={facultyIndex} className="flex items-center mb-2 last:mb-1">
                             <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
@@ -270,7 +291,7 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                             </div>
                             <div className="text-sm font-medium text-gray-900">{faculty}</div>
                             {labSlotsForFaculty && (
-                              <span className="ml-2 text-xs">
+                              <span className={`ml-2 text-xs ${slotColorClass}`}>
                                 {labSlotsForFaculty}
                               </span>
                             )}

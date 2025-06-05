@@ -34,29 +34,79 @@ slotConflictPairs.forEach(([slot1, slot2]) => {
   slotConflictsMap.set(slot2, [...slot2Conflicts, slot1]);
 });
 
+// --- Slot Association Logic (Module Level) ---
+const morningTheorySlotsConst = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'TA1', 'TB1', 'TC1', 'TD1', 'TE1', 'TF1', 'TG1', 'TAA1', 'TCC1'];
+const eveningTheorySlotsConst = ['A2', 'B2', 'C2', 'D2', 'E2', 'F2', 'G2', 'TA2', 'TB2', 'TC2', 'TD2', 'TE2', 'TF2', 'TAA2', 'TBB2', 'TCC2', 'TDD2'];
+
+const getAssociatedSlots = (primarySlot: string, availableTheorySlots: string[]): string[] => {
+  const associates: string[] = [];
+  if (primarySlot.length < 2 || primarySlot.length > 3) return associates;
+
+  const baseLetter = primarySlot[0];
+  if (!/^[A-G]$/.test(baseLetter)) return associates;
+
+  const firstAssociatePattern = `T${primarySlot}`;
+  if (availableTheorySlots.includes(firstAssociatePattern)) {
+    associates.push(firstAssociatePattern);
+  }
+
+  const secondAssociatePattern = `T${baseLetter}${primarySlot}`;
+  if (availableTheorySlots.includes(secondAssociatePattern)) {
+    if (!associates.includes(secondAssociatePattern)) {
+      associates.push(secondAssociatePattern);
+    }
+  }
+  return associates;
+};
+
+const primaryMorningSlotsList = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1'];
+const morningSlotAssociations = new Map<string, string[]>();
+primaryMorningSlotsList.forEach(ps => {
+  morningSlotAssociations.set(ps, getAssociatedSlots(ps, morningTheorySlotsConst));
+});
+
+const primaryEveningSlotsList = ['A2', 'B2', 'C2', 'D2', 'E2', 'F2', 'G2'];
+const eveningSlotAssociations = new Map<string, string[]>();
+primaryEveningSlotsList.forEach(ps => {
+  eveningSlotAssociations.set(ps, getAssociatedSlots(ps, eveningTheorySlotsConst));
+});
+// --- End Slot Association Logic ---
+
 interface CourseSlotSelectorProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { 
-    courseName: string; 
-    selectedSlots: string[]; 
-    credits: number; 
-    facultyPreferences?: string[]; 
-    includeLabCourse?: boolean; 
+  onSubmit: (data: {
+    courseName: string;
+    selectedSlots: string[];
+    credits: number;
+    facultyPreferences?: string[];
+    includeLabCourse?: boolean;
     facultyLabAssignments?: Map<string, string[]>;
   }) => void;
-  preferredSlot: 'morning' | 'evening' | 'custom';
   existingSlots?: string[]; // Add this prop to track already selected slots
   editingCourse?: { name: string; slots: string[]; credits: number; facultyPreferences?: string[]; facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }> }; // Add prop for editing
+  referenceElement?: HTMLElement;
+  placement?: 'bottom' | 'top' | 'left' | 'right';
+  isMorningTheory?: boolean;
+  isFirstFaculty?: boolean;
+  blockedSlots?: string[];
+  slotConflictPairs?: string[][];
+  preSelectedSlots?: string[];
 }
 
-const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
-  preferredSlot,
+const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
   existingSlots = [], // Default to empty array if not provided
-  editingCourse = undefined // Default to undefined if not provided
+  editingCourse = undefined, // Default to undefined if not provided
+  referenceElement,
+  placement = 'bottom',
+  isMorningTheory = false,
+  isFirstFaculty = false,
+  blockedSlots = [],
+  slotConflictPairs = [],
+  preSelectedSlots = []
 }) => {
   const [courseName, setCourseName] = useState('');
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
@@ -65,28 +115,30 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
   const [tempCourseData, setTempCourseData] = useState<{courseName: string; selectedSlots: string[]; credits: number} | null>(null);
   const [transientFacultyPreferences, setTransientFacultyPreferences] = useState<string[] | undefined>(undefined);
   const [transientLabAssignments, setTransientLabAssignments] = useState<Map<string, string[]> | undefined>(undefined);
+  const [activeTimingTab, setActiveTimingTab] = useState<'morning' | 'evening'>('morning'); // New state for tabs
+  const [creditInputString, setCreditInputString] = useState('0'); // New state for credit input text
+  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
+  const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
+
+  // Use the constants for slot patterns
+  const morningTheorySlots = morningTheorySlotsConst;
+  const eveningTheorySlots = eveningTheorySlotsConst;
 
   useEffect(() => {
-    if (isOpen && !isFacultyModalOpen) { // If this modal is open and FacultyModal is NOT on top
+    if (isOpen && !isFacultyModalOpen) {
       document.body.style.overflow = 'hidden';
-    } else if (!isOpen) { // If this modal itself is closing
-      document.body.style.overflow = 'auto'; // This is the outermost modal, so restore scroll
+    } else if (!isOpen) {
+      document.body.style.overflow = 'auto';
     }
-    // If FacultyModal is open on top (isFacultyModalOpen is true), 
-    // FacultyPreferenceModal will handle the overflow for that state.
-    // No explicit cleanup is needed for the else if (isOpen && isFacultyModalOpen) case,
-    // as this effect will re-evaluate when isFacultyModalOpen changes.
   }, [isOpen, isFacultyModalOpen]);
 
-  // Reset form or populate with editing data when modal is opened
   useEffect(() => {
     if (isOpen) {
       if (editingCourse) {
-        // Populate form with editing data
         setCourseName(editingCourse.name);
         setSelectedSlots(editingCourse.slots);
         setCredits(editingCourse.credits);
-        // Populate transient states from editingCourse
+        setCreditInputString(editingCourse.credits.toString());
         setTransientFacultyPreferences(editingCourse.facultyPreferences || []);
         if (editingCourse.facultyLabAssignments) {
           const labAssignmentsMap = new Map<string, string[]>();
@@ -98,75 +150,86 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
           setTransientLabAssignments(undefined);
         }
       } else {
-        // Reset form for new entry
         setCourseName('');
         setSelectedSlots([]);
-        setCredits(0); // Reset to 0 for new entry
-        setTransientFacultyPreferences(undefined); // Clear transients for new entry
+        setCredits(0);
+        setCreditInputString('0');
+        setTransientFacultyPreferences(undefined);
         setTransientLabAssignments(undefined);
       }
-      setTempCourseData(null); // tempCourseData is for details before opening faculty modal
+      setTempCourseData(null);
     }
   }, [isOpen, editingCourse]);
 
-  // Slot patterns - only theory slots
-  const morningTheorySlots = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'TA1', 'TB1', 'TC1', 'TD1', 'TE1', 'TF1', 'TG1', 'TAA1', 'TCC1'];
-  const eveningTheorySlots = ['A2', 'B2', 'C2', 'D2', 'E2', 'F2', 'G2', 'TA2', 'TB2', 'TC2', 'TD2', 'TE2', 'TF2', 'TAA2', 'TBB2', 'TCC2', 'TDD2'];
+  useEffect(() => {
+    if (activeTimingTab === 'morning') {
+      setSelectedSlots(prevSlots => prevSlots.filter(slot => morningTheorySlots.includes(slot)));
+    } else {
+      setSelectedSlots(prevSlots => prevSlots.filter(slot => eveningTheorySlots.includes(slot)));
+    }
+  }, [activeTimingTab, morningTheorySlots, eveningTheorySlots]);
 
   const toggleSlot = (slot: string) => {
-    // Don't allow selecting already taken slots, unless it's part of the course being edited
     if (isSlotTaken(slot) && !(editingCourse && editingCourse.slots.includes(slot))) return;
     
-    const newSelectedSlots = selectedSlots.includes(slot)
-      ? selectedSlots.filter(s => s !== slot)
-      : [...selectedSlots, slot];
+    let slotsToUpdate = new Set<string>();
     
-    setSelectedSlots(newSelectedSlots);
+    // If removing a slot
+    if (selectedSlots.includes(slot)) {
+      // Remove the slot and its associated slot (if any)
+      const newSelectedSlots = selectedSlots.filter(s => {
+        // Keep slots that are not the one being removed and not its associated slot
+        if (s === slot) return false;
+        if (s === `T${slot}`) return false; // Remove associated slot (e.g., TA1 when removing A1)
+        return true;
+      });
+      setSelectedSlots(newSelectedSlots);
+    } else {
+      // Adding a slot
+      slotsToUpdate.add(slot);
+      
+      // If it's a primary slot (like A1, B1, etc.), automatically add its associated slot
+      if (/^[A-G][12]$/.test(slot)) {
+        const associatedSlot = `T${slot}`;
+        // Only add the associated slot if it exists in available slots and isn't blocked
+        if (
+          (activeTimingTab === 'morning' ? morningTheorySlots : eveningTheorySlots).includes(associatedSlot) &&
+          !isSlotTaken(associatedSlot)
+        ) {
+          slotsToUpdate.add(associatedSlot);
+        }
+      }
+      
+      setSelectedSlots([...selectedSlots, ...Array.from(slotsToUpdate)]);
+    }
   };
 
-  // Function to check if a slot is already taken in other courses or conflicts with selected/existing
-  const isSlotTaken = (slot: string) => {
-    // If we're editing a course, don't consider its own slots (or their conflicts) as taken by this course
+  const isSlotTaken = (slot: string): boolean => {
     if (editingCourse && editingCourse.slots.includes(slot)) {
       return false;
     }
-
-    // Check direct occupation
     if (existingSlots.includes(slot)) {
       return true;
     }
-
     const conflictingSlots = slotConflictsMap.get(slot) || [];
-
-    // Check if any conflicting slot is already taken by *another* course
     for (const conflict of conflictingSlots) {
       if (existingSlots.includes(conflict)) {
-        // If editing, ensure the conflict isn't from the course being edited itself.
         if (editingCourse && editingCourse.slots.includes(conflict)) {
-          // This conflict is part of the course being edited, so it doesn't make 'slot' unavailable due to external factors.
-          // However, 'slot' might be unavailable due to internal selection, checked next.
+          // Conflict is part of the course being edited, not an external block.
         } else {
-          return true; // Conflicting slot is taken by an external course
+          return true; 
         }
       }
     }
-    
-    // Check if any conflicting slot is *currently selected in this modal*
-    // (excluding the slot itself if it's part of an edited course's original slots)
     for (const conflict of conflictingSlots) {
       if (selectedSlots.includes(conflict)) {
-         // If 'slot' is part of the original course slots during an edit,
-         // and 'conflict' is also part of original course slots, this specific conflict pair was pre-existing.
-         // This check is more about preventing new selections that conflict.
         if (editingCourse && editingCourse.slots.includes(slot) && editingCourse.slots.includes(conflict)) {
-            // This specific conflict was part of the original course.
-            // Allow 'slot' to be shown as selected, but don't mark it as 'taken' by its own partner for disabling.
+          // This specific conflict was part of the original course.
         } else {
-            return true; // New selection 'conflict' makes 'slot' unavailable
+          return true;
         }
       }
     }
-
     return false;
   };
 
@@ -247,14 +310,15 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
     setCourseName('');
     setSelectedSlots([]);
     setCredits(0); // Reset credits to 0
+    setCreditInputString('0'); // Reset creditInputString
     setTempCourseData(null);
     setTransientFacultyPreferences(undefined); // Clear transients
     setTransientLabAssignments(undefined);
   };
 
-  // Get slot rows based on the preferred slot
+  // Get slot rows based on the active timing tab
   const getSlotRows = () => {
-    const slots = preferredSlot === 'evening' ? eveningTheorySlots : morningTheorySlots;
+    const slots = activeTimingTab === 'evening' ? eveningTheorySlots : morningTheorySlots;
     
     // Create rows of 4 slots each for consistent layout
     const rows = [];
@@ -300,65 +364,126 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
               <label htmlFor="credits-input" className="block text-sm font-medium text-gray-700 mb-2">
                 Credits
               </label>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setCredits(prev => Math.max(0, prev - 1))}
-                  className="p-2 w-8 h-8 flex items-center justify-center text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
-                  aria-label="Decrease credits"
-                >
-                  -
-                </button>
+              <div className="relative flex items-center">
                 <input
                   id="credits-input"
                   type="text"
-                  value={credits.toString()}
-                  maxLength={1}
-                  pattern="[0-5]"
+                  value={creditInputString}
+                  maxLength={2}
+                  onFocus={(e) => {
+                    // Optional: select all text on focus for easy replacement
+                    // e.target.select();
+                  }}
                   onChange={(e) => {
                     const val = e.target.value;
+                    setCreditInputString(val); // Update string representation first
+
                     if (val === '') {
-                      setCredits(0);
+                      // If user clears the input, set credits to 0 (or handle as pending)
+                      setCredits(0); 
                     } else {
-                      // This logic correctly parses a single digit string and clamps it,
-                      // e.g., parseInt("a") || 0 is 0, parseInt("7") || 0 is 7, then clamped by Math.min(5, ...)
-                      setCredits(Math.max(0, Math.min(5, parseInt(val) || 0)));
+                      const num = parseInt(val);
+                      if (!isNaN(num) && num >= 0 && num <= 5) {
+                        setCredits(num);
+                      } else {
+                        // If invalid number (e.g., "a", "10"), keep credits as is or clamp.
+                        // For now, let input string be invalid temporarily, blur will fix.
+                        // Or, immediately clamp credits if that's preferred:
+                        // setCredits(prev => Math.max(0, Math.min(5, prev)));
+                      }
                     }
                   }}
-                  className="w-10 text-center border border-gray-300 rounded-md py-1.5 focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                  onBlur={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setCreditInputString('0');
+                      setCredits(0);
+                    } else {
+                      const num = parseInt(val);
+                      if (!isNaN(num) && num >= 0 && num <= 5) {
+                        setCreditInputString(num.toString());
+                        setCredits(num);
+                      } else {
+                        // If invalid on blur, revert to last valid credits
+                        setCreditInputString(credits.toString());
+                      }
+                    }
+                  }}
+                  className="w-full text-center border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-black focus:border-black pr-10"
                   aria-label="Credits value"
                 />
-                <button
-                  type="button"
-                  onClick={() => setCredits(prev => Math.min(5, prev + 1))}
-                  className="p-2 w-8 h-8 flex items-center justify-center text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
-                  aria-label="Increase credits"
-                >
-                  +
-                </button>
+                <div className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center pr-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newCredits = Math.min(5, credits + 1);
+                      setCredits(newCredits);
+                      setCreditInputString(newCredits.toString());
+                    }}
+                    className="h-1/2 px-1 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-tr-md focus:outline-none"
+                    aria-label="Increase credits"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newCredits = Math.max(0, credits - 1);
+                      setCredits(newCredits);
+                      setCreditInputString(newCredits.toString());
+                    }}
+                    className="h-1/2 px-1 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-br-md focus:outline-none"
+                    aria-label="Decrease credits"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Slots Grid */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Slots
-            </label>
+            {/* Timing Tabs */}
+            <div className="flex mb-4 border-b border-gray-200">
+              <button
+                onClick={() => setActiveTimingTab('morning')}
+                className={`px-4 py-2 text-sm font-medium transition-colors
+                  ${activeTimingTab === 'morning'
+                    ? 'border-b-2 border-black text-black'
+                    : 'text-gray-500 hover:text-gray-700'
+                  }
+                `}
+              >
+                Morning Slots
+              </button>
+              <button
+                onClick={() => setActiveTimingTab('evening')}
+                className={`px-4 py-2 text-sm font-medium transition-colors
+                  ${activeTimingTab === 'evening'
+                    ? 'border-b-2 border-black text-black'
+                    : 'text-gray-500 hover:text-gray-700'
+                  }
+                `}
+              >
+                Evening Slots
+              </button>
+            </div>
+
             {getSlotRows().map((row, rowIndex) => (
               <div key={rowIndex} className="flex gap-2 mb-2">
                 {row.map(slot => (
                   <button
                     key={slot}
                     onClick={() => toggleSlot(slot)}
-                    disabled={isSlotTaken(slot)}
+                    disabled={isSlotTaken(slot) && !selectedSlots.includes(slot)}
                     className={`
-                      flex-1 p-3 rounded-lg text-sm font-medium transition-all border border-transparent
+                      flex-1 p-3 rounded-lg text-sm font-medium transition-all
                       ${selectedSlots.includes(slot)
-                        ? 'bg-black text-white hover:bg-gray-800'
+                        ? 'bg-black text-white border border-black'
                         : isSlotTaken(slot)
-                          ? 'bg-gray-400 text-gray-600 cursor-not-allowed opacity-70'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          ? 'bg-gray-400 text-gray-600 cursor-not-allowed opacity-70 border border-gray-400'
+                          : 'bg-gray-200 text-gray-700 border border-gray-200'
                       }
                     `}
                   >
@@ -374,14 +499,9 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
             {editingCourse ? (
               // Show only confirm/cancel when editing
               <>
+                {/* Cancel button removed as X button in header serves this purpose */}
                 <button
-                  onClick={handleCloseModal}
-                  className="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleSkipFaculty()}
+                  onClick={() => handleSkipFaculty()} // This is effectively the 'Confirm' for editing
                   disabled={!courseName || selectedSlots.length === 0}
                   className={`
                     px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors
@@ -423,6 +543,7 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
           onClose={handleFacultyModalClose}
           onSubmit={handleFacultyPreferenceSubmit}
           courseName={`${tempCourseData.courseName} ${tempCourseData.selectedSlots.join('+')}`}
+          courseCredits={tempCourseData.credits}
           initialFacultyPreferences={transientFacultyPreferences !== undefined ? transientFacultyPreferences : (editingCourse ? editingCourse.facultyPreferences : [])}
           initialFacultyLabAssignments={transientLabAssignments !== undefined ? transientLabAssignments : 
             (editingCourse?.facultyLabAssignments ? new Map(editingCourse.facultyLabAssignments.map(a => [a.facultyName, a.slots])) : undefined)}

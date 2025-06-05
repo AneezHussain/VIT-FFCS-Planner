@@ -1,6 +1,5 @@
 import React from 'react';
-import { AiOutlineHome, AiOutlineTeam, AiOutlineSetting, AiOutlineQuestionCircle, AiOutlineMenu } from 'react-icons/ai';
-import { BiConversation } from 'react-icons/bi';
+import { AiOutlineHome, AiOutlineTeam, AiOutlineQuestionCircle, AiOutlineMenu } from 'react-icons/ai';
 
 interface SidebarProps {
   currentPage: string;
@@ -24,7 +23,7 @@ const SidebarItem: React.FC<{
       }`}
       title={text}
     >
-      <span className="text-xl">{icon}</span>
+      <span className="text-2xl">{icon}</span>
     </button>
   );
 };
@@ -55,7 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-16 h-full bg-white shadow-md transition-transform duration-300 ease-in-out z-20 w-16
+        className={`fixed left-0 top-16 h-full bg-white transition-transform duration-300 ease-in-out z-20 w-20
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
         <div className="h-full flex flex-col">
@@ -74,20 +73,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 active={currentPage === 'faculty-list'}
               />
               <SidebarItem 
-                icon={<BiConversation />} 
-                text="Communities" 
-                onClick={() => setCurrentPage('communities')}
-                active={currentPage === 'communities'}
-              />
-              <SidebarItem 
                 icon={<AiOutlineQuestionCircle />} 
                 text="Help" 
                 onClick={() => setCurrentPage('help')}
-              />
-              <SidebarItem 
-                icon={<AiOutlineSetting />} 
-                text="Settings" 
-                onClick={() => setCurrentPage('settings')} 
               />
             </div>
           </div>

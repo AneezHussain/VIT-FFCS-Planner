@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { IoArrowBack } from 'react-icons/io5';
+import { IoArrowBack, IoClose } from 'react-icons/io5';
 import { AiOutlinePlus, AiOutlineEdit } from 'react-icons/ai';
 import FacultyLabSlotSelectorModal from './FacultyLabSlotSelectorModal';
 import SlotSelector from './SlotSelector';
@@ -122,13 +122,23 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
           ? 'w-[900px]' 
           : 'w-[550px]'
       }`}>
-        <div className="flex items-center mb-6">
+        {/* New header with Back button on left and X button on right */}
+        <div className="flex justify-between items-center mb-3">
+          {/* Back button - existing functionality */}
           <button 
             onClick={onClose}
-            className="text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1.5"
+            className="text-gray-600 hover:text-blue-600 transition-colors flex items-center"
+            aria-label="Back"
           >
-            <IoArrowBack size={18} />
-            <span className="text-sm font-medium">Back</span>
+            <IoArrowBack size={24} />
+          </button>
+          {/* New X Close button */}
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 transition-colors"
+            aria-label="Close modal"
+          >
+            <IoClose size={24} />
           </button>
         </div>
 
@@ -176,7 +186,7 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
                       </div>
                       <button
                         onClick={(e) => handleAssignSlotsClick(e, faculty)}
-                        className="ml-3 text-gray-500 hover:text-blue-600 transition-transform hover:scale-110"
+                        className="ml-3 text-gray-500 hover:text-black transition-transform hover:scale-110"
                       >
                         {assignedSlotsString ? <AiOutlineEdit size={24} /> : <AiOutlinePlus size={24} />}
                       </button>
@@ -212,7 +222,7 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
                         </div>
                         <button
                           onClick={(e) => handleAssignSlotsClick(e, faculty)}
-                          className="ml-3 text-gray-500 hover:text-blue-600 transition-transform hover:scale-110"
+                          className="ml-3 text-gray-500 hover:text-black transition-transform hover:scale-110"
                         >
                           {assignedSlotsString ? <AiOutlineEdit size={24} /> : <AiOutlinePlus size={24} />}
                         </button>
@@ -235,18 +245,12 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
 
         <div className="flex justify-end space-x-3 mt-5 pb-2">
           <button
-            onClick={onClose}
-            className="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
             onClick={() => onSubmit(facultySpecificLabSlots)}
             disabled={isConfirmLabDetailsDisabled}
             className={`confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors ${
               isConfirmLabDetailsDisabled
                 ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600'
+                : 'bg-black'
             }`}
           >
             Confirm Lab Details

@@ -98,9 +98,6 @@ const SlotSelector: React.FC<SlotSelectorProps> = ({
           <div className="flex justify-between items-center mb-4">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Select Lab Slots</h2>
-              <p className="text-xs text-gray-600 mt-0.5">
-                Available: {isMorningTheory ? 'L31-L60' : 'L1-L30'}
-              </p>
             </div>
             <button 
               onClick={onClose}

@@ -11,10 +11,9 @@ interface Course {
 
 interface FacultyListProps {
   courses: Course[];
-  semesterName: string;
 }
 
-const FacultyList: React.FC<FacultyListProps> = ({ courses, semesterName }) => {
+const FacultyList: React.FC<FacultyListProps> = ({ courses }) => {
   const [facultySearchQuery, setFacultySearchQuery] = useState('');
 
   const allFaculty = useMemo(() => {
@@ -63,14 +62,6 @@ const FacultyList: React.FC<FacultyListProps> = ({ courses, semesterName }) => {
         />
         <AiOutlineSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
       </div>
-      
-      {semesterName && (
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-800">
-            Semester: <span className="font-normal">{semesterName}</span>
-          </h2>
-        </div>
-      )}
       
       {filteredFaculty.length > 0 ? (
         <div className="space-y-3">

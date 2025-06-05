@@ -28,7 +28,6 @@ const TimeTableModal: React.FC<TimeTableModalProps> = ({ isOpen, onClose, onSubm
         isOpen={true}
         onClose={() => setShowSlotSelector(false)}
         onSubmit={handleSlotSubmit}
-        preferredSlot={isMorningSlot ? 'morning' : 'evening'}
         existingSlots={existingSlots}
       />
     );

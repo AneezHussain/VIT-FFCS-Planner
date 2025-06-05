@@ -10,6 +10,7 @@ interface FacultyPreferenceModalProps {
   onClose: (currentFacultyPreferences?: string[], currentLabAssignments?: Map<string, string[]>) => void;
   onSubmit: (facultyPreferences: string[], includeLabCourse?: boolean, facultyLabAssignments?: Map<string, string[]>) => void;
   courseName: string;
+  courseCredits: number;
   initialFacultyPreferences?: string[];
   initialFacultyLabAssignments?: Map<string, string[]>;
   allCurrentlyUsedSlots: string[];
@@ -25,6 +26,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   onClose,
   onSubmit,
   courseName,
+  courseCredits,
   initialFacultyPreferences = [],
   initialFacultyLabAssignments,
   allCurrentlyUsedSlots,
@@ -258,10 +260,25 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
     setIsLabModalOpen(false);
   };
 
-  const handleLabModalSubmit = (facultyLabAssignments: Map<string, string[]>) => {
-    setConfirmedLabAssignments(facultyLabAssignments);
-    setIsLabModalOpen(false);
-    // DO NOT call props.onSubmit here anymore
+  const handleLabSlotConfirmAndProceed = (labAssignmentsFromModal: Map<string, string[]>) => {
+    setConfirmedLabAssignments(labAssignmentsFromModal);
+    setIsLabModalOpen(false); // Close the LabSlotModal
+
+    // Gather current faculty preferences, including any name in the input field
+    let currentPreferences = getAllFacultyPreferences();
+    const facultyNameInInput = facultyName.trim();
+    if (facultyNameInInput) {
+      // Add faculty from input if not already in the lists for this submission
+      if (!currentPreferences.includes(facultyNameInInput)) {
+          currentPreferences = [...currentPreferences, facultyNameInInput];
+      }
+    }
+
+    const includeLabForSubmission = !!labAssignmentsFromModal && labAssignmentsFromModal.size > 0 && currentPreferences.length > 0;
+
+    // Call the onSubmit prop from CourseSlotSelector (which is CourseSlotSelector.handleFacultyPreferenceSubmit)
+    // This will handle the actual submission and subsequent closing of FacultyPreferenceModal
+    onSubmit(currentPreferences, includeLabForSubmission, labAssignmentsFromModal);
   };
 
   const handleSkip = () => {
@@ -435,14 +452,23 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
           ? 'bg-transparent shadow-none pointer-events-none' 
           : 'bg-white rounded-2xl shadow-xl'
       } z-10 relative transition-all duration-300`}>
-        <div className="flex items-center mb-6">
-          {/* Back button */}
+        {/* New header with Back button on left and X button on right */}
+        <div className="flex justify-between items-center mb-3">
+          {/* Back button - existing functionality */}
           <button 
             onClick={() => onClose(getAllFacultyPreferences(), confirmedLabAssignments)}
-            className="text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1.5"
+            className="text-gray-600 hover:text-black transition-colors flex items-center"
+            aria-label="Back"
           >
-            <IoArrowBack size={18} />
-            <span className="text-sm font-medium">Back</span>
+            <IoArrowBack size={24} />
+          </button>
+          {/* New X Close button */}
+          <button 
+            onClick={() => onClose()} // Simple close, no args
+            className="text-gray-500 hover:text-gray-700 transition-colors"
+            aria-label="Close modal"
+          >
+            <IoClose size={24} />
           </button>
         </div>
 
@@ -457,7 +483,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
           </span>
           <span className="flex items-center space-x-1 bg-gray-100 rounded-lg px-2 py-1">
             <span className="text-xs text-gray-500">Credits:</span>
-            <span className="text-sm font-medium text-gray-900">{courseName.endsWith(' Lab') ? '1' : '3'}</span>
+            <span className="text-sm font-medium text-gray-900">{courseCredits}</span>
           </span>
         </p>
 
@@ -571,9 +597,9 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                       {facultyName.trim() && (
                         <button
                           onClick={handleClearInput}
-                          className="w-full h-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100"
+                          className="w-full h-full flex items-center justify-center text-gray-400 transition-colors rounded-full"
                         >
-                          <IoClose size={20} />
+                          <IoClose size={24} />
                         </button>
                       )}
                     </div>
@@ -702,9 +728,9 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                         {facultyName.trim() && (
                           <button
                             onClick={handleClearInput}
-                            className="w-full h-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100"
+                            className="w-full h-full flex items-center justify-center text-gray-400 transition-colors rounded-full"
                           >
-                            <IoClose size={20} />
+                            <IoClose size={24} />
                           </button>
                         )}
                       </div>
@@ -738,12 +764,6 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
             // When editing (has initial preferences), show only Cancel/Confirm
             <>
               <button
-                onClick={() => onClose(getAllFacultyPreferences(), confirmedLabAssignments)}
-                className="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
                 onClick={handleAddLabCourse}
                 disabled={isActionDisabled}
                 className={`px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors ${
@@ -769,12 +789,6 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
           ) : (
             // Normal flow for adding new faculty preferences
             <>
-              <button
-                onClick={handleSkip}
-                className="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                Skip
-              </button>
               <button
                 onClick={handleAddLabCourse}
                 disabled={isActionDisabled}
@@ -807,7 +821,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
         <LabSlotModal
           isOpen={isLabModalOpen}
           onClose={handleLabModalClose}
-          onSubmit={handleLabModalSubmit}
+          onSubmit={handleLabSlotConfirmAndProceed}
           courseName={courseNameDisplay}
           theorySlot={slotDisplay || ''}
           theoryCourseActualSlots={theoryCourseSlots}

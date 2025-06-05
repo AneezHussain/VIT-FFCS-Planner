@@ -34,8 +34,8 @@ const Navbar: React.FC<NavbarProps> = ({
   }, []);
 
   return (
-    <nav className={`bg-white shadow-sm fixed w-full z-10 ${hideNavbar ? 'hidden' : ''}`}>
-      <div className="h-20 w-full pl-20 pr-8 flex items-center justify-between"> {/* Increased height, padding */}
+    <nav className={`bg-white fixed w-full z-10 ${hideNavbar ? 'hidden' : ''}`}>
+      <div className="h-20 w-full px-20 flex items-center justify-between"> {/* Changed pl-20 pr-8 to px-20 */}
         <div className="flex items-center">
           {/* Breadcrumbs */}
           <div className="text-base text-gray-600"> {/* Reduced font size from text-lg */}

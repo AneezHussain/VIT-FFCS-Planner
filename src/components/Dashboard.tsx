@@ -41,6 +41,7 @@ interface Course {
   credits: number;
   facultyPreferences?: string[];
   facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>;
+  creationMode?: 'standard' | 'custom';
 }
 
 interface DashboardProps {
@@ -51,7 +52,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
-  const [semesterName, setSemesterName] = useState('');
   const [courses, setCourses] = useState<Course[]>([]);
   const [isTimeTableModalOpen, setTimeTableModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -65,7 +65,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [hideNavbar, setHideNavbar] = useState(false);
   const prevScrollPos = useRef(0);
   const [facultySearchQuery, setFacultySearchQuery] = useState('');
-  const [preferredSlot, setPreferredSlot] = useState<'morning' | 'evening' | 'custom'>('morning');
+  const [preferredSlot, setPreferredSlot] = useState<'standard' | 'custom'>('standard');
 
   // Refs for the import, export, and Google Drive buttons
   const exportButtonRef = useRef<HTMLButtonElement>(null);
@@ -83,7 +83,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const getBaseCourseName = (name: string) => name.replace(/ Lab$/, '');
+  const getBaseCourseName = (name: string) => name.replace(/ (Lab|Edit Lab|Edit Faculty|Add Lab)$/, '').trim();
 
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -118,11 +118,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       
       // Parse CSV content
       const lines = content.split('\n');
-      const headers = lines[0].split(',');
+      const csvHeaders = lines[0].split(',');
       
       // Check if the CSV has the expected format
-      const expectedHeaders = ['courseName', 'slots', 'credits', 'facultyPreferences', 'semesterName', 'preferredSlot'];
-      const isValidFormat = expectedHeaders.every(header => headers.includes(header));
+      const expectedHeaders = ['courseName', 'slots', 'credits', 'facultyPreferences', 'preferredSlot', 'creationMode', 'facultyLabAssignments'];
+      const isValidFormat = expectedHeaders.every(header => csvHeaders.includes(header));
       
       if (!isValidFormat) {
         alert('Invalid CSV format. Please use the exported CSV format.');
@@ -132,12 +132,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       // Extract data from the CSV
       const data: {
         courses: Course[];
-        semesterName: string;
-        preferredSlot: 'morning' | 'evening' | 'custom';
+        preferredSlot: 'standard' | 'custom';
       } = {
         courses: [],
-        semesterName: '',
-        preferredSlot: 'morning'
+        preferredSlot: 'standard'
       };
       
       // Process each row
@@ -147,10 +145,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         const values = lines[i].split(',');
         const rowData: { [key: string]: any } = {};
         
-        headers.forEach((header, index) => {
+        csvHeaders.forEach((header, index) => {
           rowData[header] = values[index];
         });
         
+        const courseCreationMode = rowData['creationMode'] === 'custom' ? 'custom' : 'standard';
+
         // Add course to data
         data.courses.push({
           name: rowData['courseName'],
@@ -162,21 +162,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 const [facultyName, slotsString] = assignment.split(':');
                 return {
                   facultyName,
-                  slots: slotsString ? slotsString.split('-') : [] // Assuming slots are 'L1-L2' in CSV
+                  slots: slotsString ? slotsString.split('-') : []
                 };
               })
-            : undefined
+            : undefined,
+          creationMode: courseCreationMode
         });
         
         if (i === 1) {
-          data.semesterName = rowData['semesterName'] || '';
-          data.preferredSlot = (rowData['preferredSlot'] === 'evening' ? 'evening' : rowData['preferredSlot'] === 'custom' ? 'custom' : 'morning');
+          data.preferredSlot = courseCreationMode;
         }
       }
       
       // Update the state with the imported data
       setCourses(data.courses);
-      setSemesterName(data.semesterName);
       setPreferredSlot(data.preferredSlot);
       
       // Close the import modal
@@ -268,57 +267,95 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     facultyLabAssignmentsMap?: Map<string, string[]>
   ) => {
     if (tempCourseData) {
-      let updatedCourses = [...courses];
-      let theoryCourseName = tempCourseData.courseName;
-      let theorySlots = tempCourseData.selectedSlots;
-      const facultyLabAssignmentsArray = facultyLabAssignmentsMap 
-        ? Array.from(facultyLabAssignmentsMap.entries()).map(([facultyName, slots]) => ({ facultyName, slots })) 
+      const facultyLabAssignmentsArray = facultyLabAssignmentsMap
+        ? Array.from(facultyLabAssignmentsMap.entries()).map(([facultyName, slots]) => ({ facultyName, slots }))
         : undefined;
 
-      if (editingCourseIndex !== null) {
-        updatedCourses[editingCourseIndex] = {
-          ...updatedCourses[editingCourseIndex],
-          facultyPreferences,
-        };
-        theoryCourseName = updatedCourses[editingCourseIndex].name;
-        theorySlots = updatedCourses[editingCourseIndex].slots;
-      } else {
-        const newCourse: Course = {
-          name: tempCourseData.courseName,
-          slots: tempCourseData.selectedSlots,
-          credits: tempCourseData.credits,
-          facultyPreferences,
-        };
-        updatedCourses.push(newCourse);
-      }
-      
+      const newCourse: Course = {
+        name: tempCourseData.courseName,
+        slots: tempCourseData.selectedSlots,
+        credits: tempCourseData.credits,
+        facultyPreferences,
+        facultyLabAssignments: facultyLabAssignmentsArray,
+        creationMode: 'standard' // Defaulting to standard, adjust if needed
+      };
+
+      let updatedCourses = [...courses, newCourse];
+
       if (includeLabCourse) {
-        const labCourseData: Course = {
-          name: `${theoryCourseName} Lab`,
-          slots: theorySlots, 
-          credits: 1, 
-          facultyPreferences: facultyPreferences,
-          facultyLabAssignments: facultyLabAssignmentsArray 
+        const labCourse: Course = {
+          name: `${tempCourseData.courseName} Lab`,
+          slots: tempCourseData.selectedSlots, // Lab slots might need adjustment based on your logic
+          credits: 1, // Default lab credits
+          facultyPreferences, // Lab might share faculty preferences
+          facultyLabAssignments: facultyLabAssignmentsArray, // Lab might use same assignments
+          creationMode: 'standard'
         };
-        const existingLabIndex = updatedCourses.findIndex(c => c.name === labCourseData.name);
-        if (existingLabIndex !== -1) {
-          updatedCourses[existingLabIndex] = { ...updatedCourses[existingLabIndex], ...labCourseData };
-        } else {
-          updatedCourses.push(labCourseData);
-        }
+        updatedCourses.push(labCourse);
       }
-      
+
       setCourses(updatedCourses);
-      if (editingCourseIndex !== null) {
-        setEditingCourseIndex(null);
+      setTempCourseData(null);
+      setIsFacultyModalOpen(false);
+    } else if (editingCourseIndex !== null) {
+      // This block handles submitting faculty preferences when editing an existing course
+      const facultyLabAssignmentsArray = facultyLabAssignmentsMap
+        ? Array.from(facultyLabAssignmentsMap.entries()).map(([facultyName, slots]) => ({ facultyName, slots }))
+        : undefined;
+
+      setCourses(prevCourses => 
+        prevCourses.map((course, index) => 
+          index === editingCourseIndex 
+            ? { 
+                ...course, 
+                facultyPreferences, 
+                facultyLabAssignments: facultyLabAssignmentsArray || course.facultyLabAssignments 
+              }
+            : course
+        )
+      );
+      // If editing a theory course and includeLabCourse is true, we might need to add/update its lab
+      const editedCourse = courses[editingCourseIndex];
+      if (includeLabCourse && editedCourse && !editedCourse.name.endsWith(' Lab')) {
+        const labCourseName = `${editedCourse.name} Lab`;
+        const labCourse: Course = {
+          name: labCourseName,
+          slots: editedCourse.slots, // Or derive lab slots differently
+          credits: 1,
+          facultyPreferences,
+          facultyLabAssignments: facultyLabAssignmentsArray,
+          creationMode: 'standard'
+        };
+        setCourses(prevCourses => {
+          const existingLabIndex = prevCourses.findIndex(c => c.name === labCourseName);
+          if (existingLabIndex !== -1) {
+            // Update existing lab
+            return prevCourses.map((c, i) => i === existingLabIndex ? labCourse : c);
+          } else {
+            // Add new lab
+            return [...prevCourses, labCourse];
+          }
+        });
       }
+      setEditingCourseIndex(null); // Reset editing index
+      setIsFacultyModalOpen(false); // Close faculty modal
     }
-    setTempCourseData(null);
-    setIsFacultyModalOpen(false);
   };
 
   const handleDeleteCourse = (indexToDelete: number) => {
-    setCourses(courses.filter((_, index) => index !== indexToDelete));
+    const courseToDelete = courses[indexToDelete];
+    if (!courseToDelete) return;
+
+    const isTheoryCourse = !courseToDelete.name.endsWith(' Lab');
+    const labCourseNameToDelete = isTheoryCourse ? `${courseToDelete.name} Lab` : null;
+
+    setCourses(prevCourses => 
+      prevCourses.filter((course, index) => {
+        if (index === indexToDelete) return false; // Remove the course itself
+        if (labCourseNameToDelete && course.name === labCourseNameToDelete) return false; // Remove its lab if it's a theory course
+        return true;
+      })
+    );
   };
 
   const handleTimeTableSubmit = (data: { semester: string; timing: 'morning' | 'evening' }) => {
@@ -483,13 +520,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
 
   // Add exportDataToCSV function
   const exportDataToCSV = (userName?: string, message?: string): string => {
-    const headers = ['courseName', 'slots', 'credits', 'facultyPreferences', 'semesterName', 'preferredSlot', 'facultyLabAssignments'];
+    const exportCsvHeaders = ['courseName', 'slots', 'credits', 'facultyPreferences', 'preferredSlot', 'facultyLabAssignments'];
     const csvData = courses.map(course => ({
       courseName: course.name,
       slots: course.slots.join('|'),
       credits: course.credits,
       facultyPreferences: course.facultyPreferences?.join('|') || '',
-      semesterName: semesterName,
       preferredSlot: preferredSlot,
       facultyLabAssignments: course.facultyLabAssignments
         ?.map(assignment => `${assignment.facultyName}:${assignment.slots.join('-')}`)
@@ -497,9 +533,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     }));
 
     const csvContent = [
-      headers.join(','),
+      exportCsvHeaders.join(','),
       ...csvData.map(row => 
-        headers.map(header => row[header as keyof typeof row]).join(',')
+        exportCsvHeaders.map(header => row[header as keyof typeof row]).join(',')
       )
     ].join('\n');
 
@@ -518,20 +554,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
               <div className="space-y-6">
                 {/* Semester Input and Theory Preference in same row */}
                 <div className="flex items-start gap-6">
-                  {/* Semester Input - 60% width */}
-                  <div className="w-48">
-                    <label className="block text-base font-semibold text-gray-700 mb-2">
-                      Semester
-                    </label>
-                    <input
-                      type="text"
-                      value={semesterName}
-                      onChange={(e) => setSemesterName(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all h-12"
-                      placeholder="Enter semester name"
-                    />
-                  </div>
-
                   {/* Theory Slot Preference */}
                   <div>
                     <label className="block text-base font-semibold text-gray-700 mb-2">
@@ -540,32 +562,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                     <div className="bg-gray-100 rounded-lg p-1 inline-flex items-center h-12">
                       <button
                         onClick={() => {
-                          setPreferredSlot('morning');
+                          setPreferredSlot('standard');
                           setIsTimeTableSlotModalOpen(false);
                         }}
                         className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${ 
-                          preferredSlot === 'morning'
+                          preferredSlot === 'standard'
                             ? 'bg-white shadow-sm text-black' 
                             : 'text-black' 
                         }`}
                       >
-                        <BsSun className="text-black" />
-                        <span className="text-black">Morning</span>
-                      </button>
-                      <div className="w-px h-5 bg-gray-300"></div>
-                      <button
-                        onClick={() => {
-                          setPreferredSlot('evening');
-                          setIsTimeTableSlotModalOpen(false);
-                        }}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${ 
-                          preferredSlot === 'evening'
-                            ? 'bg-white shadow-sm text-black' 
-                            : 'text-black'  
-                        }`}
-                      >
-                        <BsMoonStars className="text-black" />
-                        <span className="text-black">Evening</span>
+                        <AiOutlineMenu className="text-black" />
+                        <span className="text-black">Standard</span>
                       </button>
                       <div className="w-px h-5 bg-gray-300"></div>
                       <button
@@ -620,6 +627,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                   onDeleteCourse={handleDeleteCourse}
                   onAddCourse={handleAddCourse}
                   onAddLab={handleAddLab}
+                  blockedSlots={getAllSelectedSlots()}
                 />
               </div>
             </div>
@@ -641,7 +649,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 setEditingCourseIndex(null);
               }}
               onSubmit={handleCourseSubmit}
-              preferredSlot={preferredSlot}
               existingSlots={getAllSelectedSlots().filter((slot: string) => 
                 editingCourseIndex === null || !courses[editingCourseIndex].slots.includes(slot)
               )}
@@ -680,7 +687,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 }}
                 onSubmit={handleFacultyPreferenceSubmit}
                 courseName={`${tempCourseData.courseName} ${tempCourseData.selectedSlots.join('+')}`}
-                initialFacultyPreferences={editingCourseIndex !== null ? courses[editingCourseIndex].facultyPreferences : []}
+                courseCredits={tempCourseData.credits}
+                initialFacultyPreferences={editingCourseIndex !== null && courses[editingCourseIndex] ? courses[editingCourseIndex].facultyPreferences : []}
+                initialFacultyLabAssignments={editingCourseIndex !== null && courses[editingCourseIndex] && courses[editingCourseIndex].facultyLabAssignments 
+                  ? new Map(courses[editingCourseIndex].facultyLabAssignments!.map(a => [a.facultyName, a.slots])) 
+                  : undefined}
                 allCurrentlyUsedSlots={getAllSelectedSlots()}
                 slotConflictPairs={slotConflictPairs}
               />
@@ -688,7 +699,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           </div>
         );
       case 'faculty-list':
-        return <FacultyList courses={courses} semesterName={semesterName} />;
+        return <FacultyList courses={courses} />;
       default:
         return null;
     }
