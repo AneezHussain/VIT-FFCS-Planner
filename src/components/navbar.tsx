@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AiOutlineUpload, AiOutlineUser, AiOutlineCreditCard, AiOutlineSetting, AiOutlineFileText, AiOutlineLogout, AiOutlineRight } from 'react-icons/ai';
 import { useAuth } from '../contexts/AuthContext';
-import clownAvatar from '../media/clown.png';
 import { User } from 'firebase/auth';
 
 interface NavbarProps {
@@ -41,8 +40,6 @@ const Navbar: React.FC<NavbarProps> = ({
     setIsProfileOpen(false);
   };
 
-  // Determine avatar: user's photoURL or default
-  const avatarSrc = user?.photoURL || clownAvatar;
   const displayName = user?.displayName || 'User';
   const email = user?.email || 'No email provided';
 
@@ -71,7 +68,11 @@ const Navbar: React.FC<NavbarProps> = ({
           {user && (
           <div className="relative" ref={profileRef}>
             <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors">
-                <img src={avatarSrc} alt="User Avatar" className="h-10 w-10 rounded-full object-cover" />
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="User Avatar" className="h-10 w-10 rounded-full object-cover" />
+              ) : (
+                <AiOutlineUser className="h-6 w-6" />
+              )}
             </button>
 
             {isProfileOpen && (
@@ -79,7 +80,13 @@ const Navbar: React.FC<NavbarProps> = ({
                 <div className="bg-white rounded-lg">
                   <div className="px-6 py-8 border-b border-gray-200">
                     <div className="flex items-center">
-                        <img src={avatarSrc} alt="User Avatar" className="h-32 w-32 rounded-full mr-8 shrink-0 object-cover" />
+                      {user.photoURL ? (
+                        <img src={user.photoURL} alt="User Avatar" className="h-32 w-32 rounded-full mr-8 shrink-0 object-cover" />
+                      ) : (
+                        <div className="h-32 w-32 rounded-full mr-8 shrink-0 bg-gray-200 flex items-center justify-center">
+                          <AiOutlineUser className="h-16 w-16 text-gray-400" />
+                        </div>
+                      )}
                       <div>
                           <p className="text-lg font-semibold text-gray-800">{displayName}</p>
                           <p className="text-xs text-gray-500 break-all">{email}</p>

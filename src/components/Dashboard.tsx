@@ -252,79 +252,87 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
     includeLabCourse?: boolean, 
     facultyLabAssignmentsMap?: Map<string, string[]>
   ) => {
-    if (tempCourseData) {
-      const facultyLabAssignmentsArray = facultyLabAssignmentsMap
-        ? Array.from(facultyLabAssignmentsMap.entries()).map(([facultyName, slots]) => ({ facultyName, slots }))
-        : undefined;
+    const facultyLabAssignmentsArray = facultyLabAssignmentsMap
+      ? Array.from(facultyLabAssignmentsMap.entries()).map(([facultyName, slots]) => ({ facultyName, slots }))
+      : undefined;
+
+    if (editingCourseIndex !== null) {
+      // We are editing an existing course's faculty
+      const originalCourse = courses[editingCourseIndex];
+      const baseCourseName = getBaseCourseName(originalCourse.name);
+
+      setCourses(prevCourses => {
+        let updatedCourses = [...prevCourses];
+        
+        // Update the theory course
+        updatedCourses[editingCourseIndex] = {
+          ...originalCourse,
+          facultyPreferences: facultyPreferences,
+          facultyLabAssignments: facultyLabAssignmentsArray || originalCourse.facultyLabAssignments
+        };
+
+        // If a lab course needs to be added or updated
+        if (includeLabCourse) {
+          const labCourseName = `${baseCourseName} Lab`;
+          const existingLabIndex = updatedCourses.findIndex(c => getBaseCourseName(c.name) === baseCourseName && c.name.endsWith(' Lab'));
+
+          const labCourseData: Course = {
+            name: labCourseName,
+            slots: originalCourse.slots, // Labs share theory slots
+            credits: 1,
+            facultyPreferences: facultyPreferences,
+            facultyLabAssignments: facultyLabAssignmentsArray,
+            creationMode: originalCourse.creationMode
+          };
+
+          if (existingLabIndex !== -1) {
+            // Update existing lab course
+            updatedCourses[existingLabIndex] = labCourseData;
+          } else {
+            // Add new lab course
+            updatedCourses.push(labCourseData);
+          }
+        }
+        
+        return updatedCourses;
+      });
+
+      setEditingCourseIndex(null);
+      setTempCourseData(null);
+      setIsFacultyModalOpen(false);
+
+    } else if (tempCourseData) {
+      // We are adding a new course (or at least, that's what this branch should handle)
+      // This case might not be strictly needed if faculty are only added via editing a course that already exists.
+      // For safety, let's assume it could be for adding a new course with faculty info right away.
+      const baseCourseName = getBaseCourseName(tempCourseData.courseName);
 
       const newCourse: Course = {
-        name: tempCourseData.courseName,
+        name: baseCourseName,
         slots: tempCourseData.selectedSlots,
         credits: tempCourseData.credits,
-        facultyPreferences,
+        facultyPreferences: facultyPreferences,
         facultyLabAssignments: facultyLabAssignmentsArray,
-        creationMode: 'standard' // Defaulting to standard, adjust if needed
+        creationMode: 'standard'
       };
-
+      
       let updatedCourses = [...courses, newCourse];
 
       if (includeLabCourse) {
         const labCourse: Course = {
-          name: `${tempCourseData.courseName} Lab`,
-          slots: tempCourseData.selectedSlots, // Lab slots might need adjustment based on your logic
-          credits: 1, // Default lab credits
-          facultyPreferences, // Lab might share faculty preferences
-          facultyLabAssignments: facultyLabAssignmentsArray, // Lab might use same assignments
+          name: `${baseCourseName} Lab`,
+          slots: tempCourseData.selectedSlots,
+          credits: 1,
+          facultyPreferences: facultyPreferences,
+          facultyLabAssignments: facultyLabAssignmentsArray,
           creationMode: 'standard'
         };
         updatedCourses.push(labCourse);
       }
-
+      
       setCourses(updatedCourses);
       setTempCourseData(null);
       setIsFacultyModalOpen(false);
-    } else if (editingCourseIndex !== null) {
-      // This block handles submitting faculty preferences when editing an existing course
-      const facultyLabAssignmentsArray = facultyLabAssignmentsMap
-        ? Array.from(facultyLabAssignmentsMap.entries()).map(([facultyName, slots]) => ({ facultyName, slots }))
-        : undefined;
-
-      setCourses(prevCourses => 
-        prevCourses.map((course, index) => 
-          index === editingCourseIndex 
-            ? { 
-                ...course, 
-                facultyPreferences, 
-                facultyLabAssignments: facultyLabAssignmentsArray || course.facultyLabAssignments 
-              }
-            : course
-        )
-      );
-      // If editing a theory course and includeLabCourse is true, we might need to add/update its lab
-      const editedCourse = courses[editingCourseIndex];
-      if (includeLabCourse && editedCourse && !editedCourse.name.endsWith(' Lab')) {
-        const labCourseName = `${editedCourse.name} Lab`;
-        const labCourse: Course = {
-          name: labCourseName,
-          slots: editedCourse.slots, // Or derive lab slots differently
-          credits: 1,
-          facultyPreferences,
-          facultyLabAssignments: facultyLabAssignmentsArray,
-          creationMode: 'standard'
-        };
-        setCourses(prevCourses => {
-          const existingLabIndex = prevCourses.findIndex(c => c.name === labCourseName);
-          if (existingLabIndex !== -1) {
-            // Update existing lab
-            return prevCourses.map((c, i) => i === existingLabIndex ? labCourse : c);
-          } else {
-            // Add new lab
-            return [...prevCourses, labCourse];
-          }
-        });
-      }
-      setEditingCourseIndex(null); // Reset editing index
-      setIsFacultyModalOpen(false); // Close faculty modal
     }
   };
 
@@ -333,15 +341,33 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
     if (!courseToDelete) return;
 
     const isTheoryCourse = !courseToDelete.name.endsWith(' Lab');
-    const labCourseNameToDelete = isTheoryCourse ? `${courseToDelete.name} Lab` : null;
 
-    setCourses(prevCourses => 
-      prevCourses.filter((course, index) => {
-        if (index === indexToDelete) return false; // Remove the course itself
-        if (labCourseNameToDelete && course.name === labCourseNameToDelete) return false; // Remove its lab if it's a theory course
-        return true;
-      })
-    );
+    if (isTheoryCourse) {
+      // Deleting a theory course, so also delete its corresponding lab.
+      const baseCourseName = getBaseCourseName(courseToDelete.name);
+      const labCourseNameToDelete = `${baseCourseName} Lab`;
+      setCourses(prevCourses => 
+        prevCourses.filter(c => getBaseCourseName(c.name) !== baseCourseName)
+      );
+    } else {
+      // Deleting a lab course.
+      const labCourseName = courseToDelete.name;
+      const theoryCourseName = getBaseCourseName(labCourseName);
+
+      setCourses(prevCourses => {
+        // First, update the parent theory course to remove lab assignments
+        const updatedCourses = prevCourses.map(course => {
+          if (course.name === theoryCourseName) {
+            const { facultyLabAssignments, ...rest } = course;
+            return rest;
+          }
+          return course;
+        });
+
+        // Then, filter out the lab course itself
+        return updatedCourses.filter(course => course.name !== labCourseName);
+      });
+    }
   };
 
   const handleTimeTableSubmit = (data: { semester: string; timing: 'morning' | 'evening' }) => {
@@ -388,8 +414,17 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
   };
 
   // Add getAllSelectedSlots function
-  const getAllSelectedSlots = (): string[] => {
+  const getAllSelectedSlots = (excludeIndex: number | null = null): string[] => {
+    let baseNameToExclude: string | null = null;
+    if (excludeIndex !== null && courses[excludeIndex]) {
+      baseNameToExclude = getBaseCourseName(courses[excludeIndex].name);
+    }
+
     return courses.reduce((accSlots: string[], course) => {
+      if (baseNameToExclude && getBaseCourseName(course.name) === baseNameToExclude) {
+        return accSlots;
+      }
+    
       let slotsForThisCourse: string[] = [...course.slots]; // Default to general course slots
 
       if (course.name.endsWith(' Lab') &&
@@ -533,6 +568,12 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
       case 'communities':
         return <Communities />;
       case 'dashboard':
+        const courseBeingEdited = editingCourseIndex !== null ? courses[editingCourseIndex] : null;
+        let isLabPresent = false;
+        if (courseBeingEdited && !courseBeingEdited.name.endsWith(' Lab')) {
+            const labCourseName = `${getBaseCourseName(courseBeingEdited.name)} Lab`;
+            isLabPresent = courses.some(c => c.name === labCourseName);
+        }
         return (
           <div className="space-y-8">
             {/* Semester Info and Course Cards */}
@@ -671,6 +712,11 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
                   setTempCourseData(null);
                   setEditingCourseIndex(null);
                 }}
+                onForceClose={() => {
+                  setIsFacultyModalOpen(false);
+                  setTempCourseData(null);
+                  setEditingCourseIndex(null);
+                }}
                 onSubmit={handleFacultyPreferenceSubmit}
                 courseName={`${tempCourseData.courseName} ${tempCourseData.selectedSlots.join('+')}`}
                 courseCredits={tempCourseData.credits}
@@ -678,8 +724,9 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
                 initialFacultyLabAssignments={editingCourseIndex !== null && courses[editingCourseIndex] && courses[editingCourseIndex].facultyLabAssignments 
                   ? new Map(courses[editingCourseIndex].facultyLabAssignments!.map(a => [a.facultyName, a.slots])) 
                   : undefined}
-                allCurrentlyUsedSlots={getAllSelectedSlots()}
+                allCurrentlyUsedSlots={getAllSelectedSlots(editingCourseIndex)}
                 slotConflictPairs={slotConflictPairs}
+                isLabCourseAssociated={isLabPresent}
               />
             )}
           </div>

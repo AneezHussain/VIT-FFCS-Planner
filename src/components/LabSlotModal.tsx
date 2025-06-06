@@ -11,6 +11,7 @@ const EVENING_LAB_SLOTS = Array.from({ length: 30 }, (_, i) => `L${i + 31}`); //
 interface LabSlotModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onForceClose: () => void;
   onSubmit: (facultyLabAssignments: Map<string, string[]>) => void;
   courseName: string;
   theorySlot: string;
@@ -19,11 +20,13 @@ interface LabSlotModalProps {
   allCurrentlyUsedSlots: string[];
   slotConflictPairs: string[][];
   slotColor: string;
+  initialAssignments?: Map<string, string[]>;
 }
 
 const LabSlotModal: React.FC<LabSlotModalProps> = ({
   isOpen,
   onClose,
+  onForceClose,
   onSubmit,
   courseName,
   theorySlot,
@@ -31,7 +34,8 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
   facultyPreferences,
   allCurrentlyUsedSlots,
   slotConflictPairs,
-  slotColor
+  slotColor,
+  initialAssignments
 }) => {
   const labCourseName = `${courseName} Lab`;
   // State to hold faculty-specific lab slots. Key: facultyName, Value: string[] of lab slots
@@ -90,6 +94,7 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+        setFacultySpecificLabSlots(initialAssignments ? new Map(initialAssignments) : new Map());
         document.body.style.overflow = 'hidden'; // LabModal is top-most.
         const facultyPrefModal = document.querySelector('.faculty-preference-modal');
         if (facultyPrefModal) {
@@ -104,7 +109,7 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
             facultyPrefModal.classList.remove('lab-modal-open');
         }
     };
-  }, [isOpen]);
+  }, [isOpen, initialAssignments]);
 
   if (!isOpen) return null;
 
@@ -134,7 +139,7 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
           </button>
           {/* New X Close button */}
           <button 
-            onClick={onClose}
+            onClick={onForceClose}
             className="text-gray-500 hover:text-gray-700 transition-colors"
             aria-label="Close modal"
           >

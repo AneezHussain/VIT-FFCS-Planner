@@ -169,6 +169,17 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
     }
   }, [activeTimingTab, morningTheorySlots, eveningTheorySlots]);
 
+  const handleForceClose = () => {
+    setIsFacultyModalOpen(false);
+    onClose();
+  };
+
+  const handleCloseModal = () => {
+    // Just close without saving any changes
+    resetForm(); // This will also clear transients
+    onClose();
+  };
+
   const toggleSlot = (slot: string) => {
     if (isSlotTaken(slot) && !(editingCourse && editingCourse.slots.includes(slot))) return;
     
@@ -275,35 +286,26 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
     includeLabCourse?: boolean, 
     facultyLabAssignmentsFromModal?: Map<string, string[]>
   ) => {
-    if (tempCourseData) { 
+    if (tempCourseData) {
       onSubmit({
         ...tempCourseData,
         facultyPreferences: facultyPreferencesFromModal,
-        includeLabCourse: includeLabCourse, 
-        facultyLabAssignments: facultyLabAssignmentsFromModal
+        includeLabCourse: includeLabCourse,
+        facultyLabAssignments: facultyLabAssignmentsFromModal,
       });
-      
-      resetForm(); // This will also clear transients
-      setIsFacultyModalOpen(false);
     }
-  };
-
-  const handleCloseModal = () => {
-    // Just close without saving any changes
-    resetForm(); // This will also clear transients
-    onClose();
+    handleCloseModal(); // This will close both modals and reset state
   };
 
   const handleFacultyModalClose = (currentFacultyPreferences?: string[], currentLabAssignments?: Map<string, string[]>) => {
-    // Close faculty modal, store its current state in transients
+    setIsFacultyModalOpen(false);
+    // Persist faculty preferences temporarily
     if (currentFacultyPreferences !== undefined) {
       setTransientFacultyPreferences(currentFacultyPreferences);
     }
     if (currentLabAssignments !== undefined) {
       setTransientLabAssignments(currentLabAssignments);
     }
-    setIsFacultyModalOpen(false);
-    // Do NOT reset tempCourseData here, so course name/slots/credits are retained
   };
 
   const resetForm = () => {
@@ -541,14 +543,16 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
         <FacultyPreferenceModal
           isOpen={isFacultyModalOpen}
           onClose={handleFacultyModalClose}
+          onForceClose={handleForceClose}
           onSubmit={handleFacultyPreferenceSubmit}
           courseName={`${tempCourseData.courseName} ${tempCourseData.selectedSlots.join('+')}`}
           courseCredits={tempCourseData.credits}
           initialFacultyPreferences={transientFacultyPreferences !== undefined ? transientFacultyPreferences : (editingCourse ? editingCourse.facultyPreferences : [])}
           initialFacultyLabAssignments={transientLabAssignments !== undefined ? transientLabAssignments : 
             (editingCourse?.facultyLabAssignments ? new Map(editingCourse.facultyLabAssignments.map(a => [a.facultyName, a.slots])) : undefined)}
-          allCurrentlyUsedSlots={existingSlots}
+          allCurrentlyUsedSlots={blockedSlots}
           slotConflictPairs={slotConflictPairs}
+          isLabCourseAssociated={false} // In add mode, no lab is associated yet
         />
       )}
     </>

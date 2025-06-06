@@ -164,7 +164,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
           className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
           style={{ height: '80px' }}
         >
-          <div className={darkMode ? 'text-red-400 font-medium' : 'text-system-red font-medium'}>
+          <div className={`${darkMode ? 'text-red-500' : 'text-red-600'} text-lg font-medium`}>
             {slotItem.content}
           </div>
         </td>
@@ -265,7 +265,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
       <table className={`min-w-full table-fixed ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <tbody className={`divide-y ${darkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
           {/* Theory Hours Row */}
-          <tr className={darkMode ? 'bg-gray-800/50' : 'bg-gray-50/50'}>
+          <tr className={darkMode ? 'bg-gray-700/80' : 'bg-gray-50'}>
             <td className={`px-4 py-3 text-sm font-medium border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={{ width: '80px' }}>
               THEORY<br />HOURS
             </td>
@@ -283,16 +283,17 @@ const TimeTable: React.FC<TimeTableProps> = ({
             {/* Lunch column - appears only once */}
             <td 
               rowSpan={7} 
-              className={`font-semibold text-center align-middle border-r ${darkMode ? 'bg-gray-700/80 text-gray-300 border-gray-700' : 'bg-gray-100/80 text-gray-900 border-gray-200'}`}
+              className={`font-semibold text-center align-middle border-r ${darkMode ? 'bg-gray-700/80 text-gray-300 border-gray-700' : 'bg-gray-100 text-gray-900 border-gray-200'}`}
               style={{
-                writingMode: 'vertical-rl',
-                textOrientation: 'mixed',
-                transform: 'rotate(180deg)',
                 width: '40px',
                 minWidth: '40px'
               }}
             >
-              LUNCH
+              <div className="flex flex-col items-center justify-center h-full space-y-2">
+                {'LUNCH'.split('').map((char, index) => (
+                  <span key={index}>{char}</span>
+                ))}
+              </div>
             </td>
 
             {theoryTimes.slice(6).map((time, index) => (
@@ -308,7 +309,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
           </tr>
 
           {/* Lab Hours Row */}
-          <tr className={darkMode ? 'bg-gray-800' : 'bg-white'}>
+          <tr className={darkMode ? 'bg-gray-700/80' : 'bg-gray-50'}>
             <td className={`px-4 py-3 text-sm font-medium border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={{ width: '80px' }}>
               LAB<br />HOURS
             </td>
@@ -340,7 +341,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
           {/* Days and Periods */}
           {dayRows.map(({ day, slots: dayColumnSlots }) => ( // Renamed slots to dayColumnSlots to avoid conflict
             <tr key={day} className={`transition-colors ${darkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50/50'}`}>
-              <td className={`px-4 py-3 text-sm font-medium border-r ${darkMode ? 'text-gray-300 border-gray-700' : 'text-gray-900 border-gray-200'}`} style={{ width: '80px' }}>
+              <td className={`px-4 py-3 text-sm font-medium border-r ${darkMode ? 'text-gray-300 border-gray-700 bg-gray-700/80' : 'text-gray-900 border-gray-200 bg-gray-50'}`} style={{ width: '80px' }}>
                 {day}
               </td>
               
