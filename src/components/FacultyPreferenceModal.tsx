@@ -413,7 +413,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
         : 'bg-gray-300 text-gray-700' // Inactive - darker gray
   } font-medium`;
 
-  const inputClass = `w-full py-3 px-4 border rounded-lg transition-all duration-200 ${
+  const inputClass = `w-full py-3 px-4 border rounded-lg transition-all duration-200 text-base ${
     facultyName.trim() 
       ? 'border-blue-500 ring-1 ring-blue-500' // Has content - full blue
       : isInputFocused
