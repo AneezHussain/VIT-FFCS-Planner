@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AiOutlineUpload, AiOutlineUser, AiOutlineCreditCard, AiOutlineSetting, AiOutlineFileText, AiOutlineLogout, AiOutlineRight } from 'react-icons/ai';
+import { useAuth } from '../contexts/AuthContext';
 import clownAvatar from '../media/clown.png';
+import { User } from 'firebase/auth';
 
 interface NavbarProps {
   hideNavbar: boolean;
   currentPage: string;
   importButtonRef: React.RefObject<HTMLButtonElement>;
   setIsImportModalOpen: (isOpen: boolean) => void;
-  onLogout: () => void;
+  user: User | null;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -15,10 +17,11 @@ const Navbar: React.FC<NavbarProps> = ({
   currentPage,
   importButtonRef,
   setIsImportModalOpen,
-  onLogout,
+  user
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const { logout } = useAuth();
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -33,35 +36,42 @@ const Navbar: React.FC<NavbarProps> = ({
     };
   }, []);
 
+  const handleLogout = async () => {
+    await logout();
+    setIsProfileOpen(false);
+  };
+
+  // Determine avatar: user's photoURL or default
+  const avatarSrc = user?.photoURL || clownAvatar;
+  const displayName = user?.displayName || 'User';
+  const email = user?.email || 'No email provided';
+
   return (
     <nav className={`bg-white fixed w-full z-10 ${hideNavbar ? 'hidden' : ''}`}>
-      <div className="h-20 w-full px-20 flex items-center justify-between"> {/* Changed pl-20 pr-8 to px-20 */}
+      <div className="h-20 w-full px-20 flex items-center justify-between">
         <div className="flex items-center">
-          {/* Breadcrumbs */}
-          <div className="text-base text-gray-600"> {/* Reduced font size from text-lg */}
+          <div className="text-base text-gray-600">
             <span>FFCS-Planner {'>'} </span>
-            <span className="font-medium text-gray-800"> {/* Font size will be base due to parent */}
+            <span className="font-medium text-gray-800">
               {currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}
             </span>
           </div>
         </div>
 
-        {/* Profile Section with Import/Export/Google Drive Buttons */}
-        <div className="flex items-center space-x-4"> {/* Increased spacing */}
-          {/* Import Button */}
+        <div className="flex items-center space-x-4">
           <button
             ref={importButtonRef}
             onClick={() => setIsImportModalOpen(true)}
-            className="p-3 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors" // Increased padding
+            className="p-3 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
             title="Import data from CSV"
           >
-            <AiOutlineUpload className="h-6 w-6" /> {/* Increased icon size */}
+            <AiOutlineUpload className="h-6 w-6" />
           </button>
 
-          {/* Profile Section - New */}
+          {user && (
           <div className="relative" ref={profileRef}>
             <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors">
-              <img src={clownAvatar} alt="User Avatar" className="h-10 w-10 rounded-full object-cover transform scale-150" />
+                <img src={avatarSrc} alt="User Avatar" className="h-10 w-10 rounded-full object-cover" />
             </button>
 
             {isProfileOpen && (
@@ -69,17 +79,17 @@ const Navbar: React.FC<NavbarProps> = ({
                 <div className="bg-white rounded-lg">
                   <div className="px-6 py-8 border-b border-gray-200">
                     <div className="flex items-center">
-                      <img src={clownAvatar} alt="User Avatar" className="h-28 w-28 rounded-full mr-8 shrink-0 object-cover transform scale-150" />
+                        <img src={avatarSrc} alt="User Avatar" className="h-32 w-32 rounded-full mr-8 shrink-0 object-cover" />
                       <div>
-                        <p className="text-lg font-semibold text-gray-800">VIT Clown</p>
-                        <p className="text-xs text-gray-500 break-all">mohammedaneez.r2022@vitstudent.ac.in</p>
+                          <p className="text-lg font-semibold text-gray-800">{displayName}</p>
+                          <p className="text-xs text-gray-500 break-all">{email}</p>
                       </div>
                     </div>
                   </div>
                   <ul>
                     <li 
                       className="flex items-center justify-center px-6 py-3 hover:bg-gray-100 cursor-pointer text-red-600"
-                      onClick={onLogout}
+                        onClick={handleLogout}
                     >
                       <AiOutlineLogout className="h-5 w-5 mr-3" />
                       <span className="text-sm font-medium">Logout</span>
@@ -89,7 +99,7 @@ const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
           </div>
-          {/* End Profile Section - New */}
+          )}
         </div>
       </div>
     </nav>
