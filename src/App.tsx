@@ -1,32 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Navbar from './components/navbar';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+const AppContent: React.FC = () => {
+  const { currentUser, loading, logout } = useAuth();
+  
+  // State for Navbar props (example values, adjust as needed for actual app logic)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const importButtonRef = useRef<HTMLButtonElement>(null);
+  const [currentPage, setCurrentPage] = useState('dashboard'); // Example: set current page
+  const [hideNavbar, setHideNavbar] = useState(false); // Example: control navbar visibility
 
-  const handleGoogleLogin = () => {
-    // In a real app, you would integrate Google Sign-In here
-    // For now, we'll just simulate a successful login
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-  };
-
-  if (isAuthenticated) {
+  if (loading) {
     return (
-      <div>
-        <Dashboard onLogout={handleLogout} />
+      <div className="flex items-center justify-center min-h-screen">
+        <div>Loading...</div> {/* Or a proper spinner component */}
       </div>
     );
   }
 
+  if (currentUser) {
+    return (
+      <>
+        <Navbar 
+          hideNavbar={hideNavbar} 
+          currentPage={currentPage} 
+          importButtonRef={importButtonRef} 
+          setIsImportModalOpen={setIsImportModalOpen}
+          user={currentUser}
+        />
+        {/* Dashboard might need setCurrentPage or other props if it controls navigation */}
+        <Dashboard /> 
+      </>
+    );
+  }
+
+  // Login component no longer needs onGoogleLogin if it uses useAuth directly
+  return <Login />;
+};
+
+function App() {
   return (
-    <div>
-      <Login onGoogleLogin={handleGoogleLogin} />
-    </div>
+    <AuthProvider>
+      {/* 
+        You might want to manage parts of the state like currentPage, 
+        hideNavbar, isImportModalOpen at a higher level if other 
+        components outside of AppContent need to interact with them, 
+        or through a different context.
+      */}
+      <AppContent />
+    </AuthProvider>
   );
 }
 
