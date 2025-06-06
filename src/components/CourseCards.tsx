@@ -185,7 +185,7 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                       Custom slot courses do not have faculty preference functionality.
                     </div>
                   ) : hasFacultyPreferences ? (
-                    <div className="flex flex-col space-y-2">
+                    <div className="grid grid-cols-[max-content_auto] gap-x-2 gap-y-2 items-start">
                       {course.facultyPreferences!.slice(0, 3).map((faculty, facultyIndex) => {
                         let labSlotsForFaculty: string | null = null;
                         if (isLabCourse && course.facultyLabAssignments) {
@@ -201,31 +201,36 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                         }
 
                         return (
-                          <div key={facultyIndex} className="flex items-center">
-                            <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
-                              {facultyIndex + 1}
+                          <React.Fragment key={facultyIndex}>
+                            <div className="flex items-center">
+                              <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
+                                {facultyIndex + 1}
+                              </div>
+                              <div className="text-sm font-medium text-gray-900 whitespace-nowrap">{faculty}</div>
+                              {facultyIndex === 2 && course.facultyPreferences && course.facultyPreferences.length > 3 && (
+                                <button 
+                                  className="text-gray-500 hover:text-gray-700 text-xs font-medium ml-2 flex items-center whitespace-nowrap"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedCard(expandedCard === index ? null : index);
+                                  }}
+                                >
+                                  See more
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                              )}
                             </div>
-                            <div className="text-sm font-medium text-gray-900">{faculty}</div>
-                            {labSlotsForFaculty && (
-                              <span className={`ml-2 text-xs ${slotColorClass}`}>
-                                {labSlotsForFaculty}
-                              </span>
-                            )}
-                            {facultyIndex === 2 && course.facultyPreferences && course.facultyPreferences.length > 3 && (
-                              <button 
-                                className="text-gray-500 hover:text-gray-700 text-xs font-medium ml-2 flex items-center whitespace-nowrap"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedCard(expandedCard === index ? null : index);
-                                }}
-                              >
-                                See more
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
+
+                            <div className="text-right">
+                              {labSlotsForFaculty && (
+                                <span className={`text-xs ${slotColorClass}`}>
+                                  {labSlotsForFaculty}
+                                </span>
+                              )}
+                            </div>
+                          </React.Fragment>
                         );
                       })}
                     </div>
@@ -270,34 +275,40 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                         Custom slot courses do not have faculty preference functionality.
                       </div>
                     ) : hasFacultyPreferences ? (
-                      course.facultyPreferences!.map((faculty, facultyIndex) => {
-                        let labSlotsForFaculty: string | null = null;
-                        if (isLabCourse && course.facultyLabAssignments) {
-                          const assignment = course.facultyLabAssignments.find(a => a.facultyName === faculty);
-                          if (assignment && assignment.slots.length > 0) {
-                            labSlotsForFaculty = assignment.slots.join('+');
+                      <div className="grid grid-cols-[max-content_auto] gap-x-2 gap-y-2">
+                        {course.facultyPreferences!.map((faculty, facultyIndex) => {
+                          let labSlotsForFaculty: string | null = null;
+                          if (isLabCourse && course.facultyLabAssignments) {
+                            const assignment = course.facultyLabAssignments.find(a => a.facultyName === faculty);
+                            if (assignment && assignment.slots.length > 0) {
+                              labSlotsForFaculty = assignment.slots.join('+');
+                            }
                           }
-                        }
 
-                        let slotColorClass = '';
-                        if (facultyIndex > 0 && labSlotsForFaculty) {
-                          slotColorClass = checkSlotsBlocked(labSlotsForFaculty, blockedSlots) ? 'text-red-600' : 'text-green-600';
-                        }
+                          let slotColorClass = '';
+                          if (facultyIndex > 0 && labSlotsForFaculty) {
+                            slotColorClass = checkSlotsBlocked(labSlotsForFaculty, blockedSlots) ? 'text-red-600' : 'text-green-600';
+                          }
 
-                        return (
-                          <div key={facultyIndex} className="flex items-center mb-2 last:mb-1">
-                            <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
-                              {facultyIndex + 1}
-                            </div>
-                            <div className="text-sm font-medium text-gray-900">{faculty}</div>
-                            {labSlotsForFaculty && (
-                              <span className={`ml-2 text-xs ${slotColorClass}`}>
-                                {labSlotsForFaculty}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })
+                          return (
+                            <React.Fragment key={facultyIndex}>
+                              <div className="flex items-center">
+                                <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
+                                  {facultyIndex + 1}
+                                </div>
+                                <div className="text-sm font-medium text-gray-900 whitespace-nowrap">{faculty}</div>
+                              </div>
+                              <div className="text-right">
+                                {labSlotsForFaculty && (
+                                  <span className={`text-xs ${slotColorClass}`}>
+                                    {labSlotsForFaculty}
+                                  </span>
+                                )}
+                              </div>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
                     ) : (
                       <div className="text-sm text-gray-500 italic mb-3">
                         No faculties have been added.
