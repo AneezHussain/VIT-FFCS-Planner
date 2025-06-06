@@ -11,7 +11,6 @@ import TimeTableModal from './TimeTableModal';
 import FacultyPreferenceModal from './FacultyPreferenceModal';
 import ExportModal from './ExportModal';
 import FacultyList from './FacultyList';
-import Navbar from './navbar';
 import Sidebar from './Sidebar';
 import CourseCards from './CourseCards';
 import TimeTableSlotSelector from './TimeTableSlotSelector';
@@ -45,10 +44,10 @@ interface Course {
 }
 
 interface DashboardProps {
-  onLogout: () => void;
+  // onLogout is no longer needed here if Dashboard doesn't use it directly
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
+const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -62,7 +61,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
   const [editingCourseIndex, setEditingCourseIndex] = useState<number | null>(null);
   const [isTimeTableSlotModalOpen, setIsTimeTableSlotModalOpen] = useState(false);
-  const [hideNavbar, setHideNavbar] = useState(false);
   const prevScrollPos = useRef(0);
   const [facultySearchQuery, setFacultySearchQuery] = useState('');
   const [preferredSlot, setPreferredSlot] = useState<'standard' | 'custom'>('standard');
@@ -70,18 +68,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   // Refs for the import, export, and Google Drive buttons
   const exportButtonRef = useRef<HTMLButtonElement>(null);
   const importButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Handle scroll to hide/show navbar
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollPos = window.scrollY;
-      setHideNavbar(prevScrollPos.current < currentScrollPos && currentScrollPos > 50);
-      prevScrollPos.current = currentScrollPos;
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const getBaseCourseName = (name: string) => name.replace(/ (Lab|Edit Lab|Edit Faculty|Add Lab)$/, '').trim();
 
@@ -717,15 +703,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         id="csv-file-input"
       />
       
-      {/* Top Navigation Bar */}
-      <Navbar 
-        hideNavbar={hideNavbar}
-        currentPage={currentPage}
-        importButtonRef={importButtonRef}
-        setIsImportModalOpen={setIsImportModalOpen}
-        onLogout={onLogout}
-      />
-
       {/* Sidebar */}
       <Sidebar
         currentPage={currentPage}
