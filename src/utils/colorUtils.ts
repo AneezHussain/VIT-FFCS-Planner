@@ -1,21 +1,54 @@
-export const SLOT_COLORS = [
-  'bg-red-50 text-red-700',
-  'bg-blue-50 text-blue-700',
-  'bg-green-50 text-green-700',
-  'bg-yellow-50 text-yellow-700',
-  'bg-purple-50 text-purple-700',
-  'bg-pink-50 text-pink-700',
-  'bg-indigo-50 text-indigo-700',
-  'bg-orange-50 text-orange-700',
-  'bg-teal-50 text-teal-700',
-  'bg-cyan-50 text-cyan-700',
-  'bg-lime-50 text-lime-700',
-  'bg-amber-50 text-amber-700'
-] as const;
+export const PALETTES = {
+  default: {
+    name: 'Default',
+    colors: [
+      'bg-red-100 text-red-800', 'bg-blue-100 text-blue-800', 'bg-green-100 text-green-800',
+      'bg-yellow-100 text-yellow-800', 'bg-purple-100 text-purple-800', 'bg-pink-100 text-pink-800',
+      'bg-indigo-100 text-indigo-800', 'bg-orange-100 text-orange-800', 'bg-teal-100 text-teal-800',
+      'bg-cyan-100 text-cyan-800', 'bg-lime-100 text-lime-800', 'bg-amber-100 text-amber-800'
+    ],
+    preview: ['#fecaca', '#dbeafe', '#dcfce7', '#fef9c3', '#e9d5ff', '#fce7f3']
+  },
+  vibrant: {
+    name: 'Vibrant',
+    colors: [
+      'bg-rose-500 text-white', 'bg-cyan-500 text-white', 'bg-lime-500 text-white',
+      'bg-fuchsia-500 text-white', 'bg-orange-500 text-white', 'bg-emerald-500 text-white',
+      'bg-sky-500 text-white', 'bg-amber-500 text-white', 'bg-violet-500 text-white',
+      'bg-teal-500 text-white', 'bg-pink-500 text-white', 'bg-indigo-500 text-white'
+    ],
+    preview: ['#f43f5e', '#06b6d4', '#84cc16', '#d946ef', '#f97316', '#10b981']
+  },
+  pastel: {
+    name: 'Pastel',
+    colors: [
+      'bg-red-200 text-red-800', 'bg-blue-200 text-blue-800', 'bg-green-200 text-green-800',
+      'bg-yellow-200 text-yellow-800', 'bg-purple-200 text-purple-800', 'bg-pink-200 text-pink-800',
+      'bg-indigo-200 text-indigo-800', 'bg-orange-200 text-orange-800', 'bg-teal-200 text-teal-800',
+      'bg-cyan-200 text-cyan-800', 'bg-lime-200 text-lime-800', 'bg-amber-200 text-amber-800'
+    ],
+    preview: ['#fecaca', '#bfdbfe', '#bbf7d0', '#fef08a', '#e9d5ff', '#fbcfe8']
+  }
+};
 
-export const getSlotColor = (courseName: string): string => {
-  const colorIndex = Math.abs(courseName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % SLOT_COLORS.length;
-  return SLOT_COLORS[colorIndex];
+interface CourseForColor {
+  colorIndex: number;
+}
+
+export const getNextColorIndex = (existingCourses: CourseForColor[]): number => {
+  if (existingCourses.length === 0) {
+    return 0;
+  }
+
+  const colorIndicesInUse = new Set(existingCourses.map(c => c.colorIndex));
+  let nextIndex = 0;
+  
+  while (colorIndicesInUse.has(nextIndex)) {
+    nextIndex++;
+  }
+  
+  const paletteSize = PALETTES.default.colors.length;
+  return nextIndex % paletteSize;
 };
 
 interface Course {

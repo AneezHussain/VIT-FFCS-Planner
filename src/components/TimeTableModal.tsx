@@ -2,15 +2,28 @@ import React, { useState } from 'react';
 import { IoClose } from 'react-icons/io5';
 import { BsSun, BsMoonStars } from 'react-icons/bs';
 import CourseSlotSelector from './CourseSlotSelector';
+import { PALETTES, getNextColorIndex } from '../utils/colorUtils';
+
+interface Course {
+  name: string;
+  slots: string[];
+  credits: number;
+  colorIndex: number;
+  facultyPreferences?: string[];
+  facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>;
+  creationMode?: 'standard' | 'custom';
+}
 
 interface TimeTableModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: { semester: string; timing: 'morning' | 'evening' }) => void;
   existingSlots?: string[];
+  palette: keyof typeof PALETTES;
+  courses: Course[];
 }
 
-const TimeTableModal: React.FC<TimeTableModalProps> = ({ isOpen, onClose, onSubmit, existingSlots = [] }) => {
+const TimeTableModal: React.FC<TimeTableModalProps> = ({ isOpen, onClose, onSubmit, existingSlots = [], palette, courses }) => {
   const [showSlotSelector, setShowSlotSelector] = useState(false);
   const [isMorningSlot, setIsMorningSlot] = useState(true);
 
@@ -28,7 +41,12 @@ const TimeTableModal: React.FC<TimeTableModalProps> = ({ isOpen, onClose, onSubm
         isOpen={true}
         onClose={() => setShowSlotSelector(false)}
         onSubmit={handleSlotSubmit}
+        onAddFaculty={() => {
+          // This is a standard path, no faculty addition here.
+        }}
         existingSlots={existingSlots}
+        palette={palette}
+        colorIndex={getNextColorIndex(courses)}
       />
     );
   }

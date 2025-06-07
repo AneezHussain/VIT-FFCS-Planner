@@ -1,5 +1,5 @@
 import React from 'react';
-import { AiOutlineHome, AiOutlineTeam, AiOutlineQuestionCircle, AiOutlineMenu } from 'react-icons/ai';
+import { AiOutlineHome, AiOutlineQuestionCircle, AiOutlineMenu } from 'react-icons/ai';
 
 interface SidebarProps {
   currentPage: string;
@@ -65,12 +65,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 text="Dashboard" 
                 onClick={() => setCurrentPage('dashboard')}
                 active={currentPage === 'dashboard'}
-              />
-              <SidebarItem 
-                icon={<AiOutlineTeam />} 
-                text="Faculty List" 
-                onClick={() => setCurrentPage('faculty-list')}
-                active={currentPage === 'faculty-list'}
               />
               <SidebarItem 
                 icon={<AiOutlineQuestionCircle />} 

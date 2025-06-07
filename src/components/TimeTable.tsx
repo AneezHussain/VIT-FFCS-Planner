@@ -1,11 +1,12 @@
 ﻿import React from 'react';
-import { getColorClass } from '../utils/colorUtils';
+import { getColorClass, PALETTES } from '../utils/colorUtils';
 
 // Define Course interface directly within the component
 interface Course {
   name: string;
   slots: string[];
   credits: number;
+  colorIndex: number;
   facultyPreferences?: string[];
   facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>;
   code?: string;
@@ -28,6 +29,7 @@ interface DayRow {
 interface TimeTableProps {
   courses?: Course[];
   darkMode?: boolean;
+  palette?: keyof typeof PALETTES;
   // New props for interactive mode
   isSelectMode?: boolean;
   onCellClick?: (event: React.MouseEvent<HTMLButtonElement>, cellSlots: string) => void;
@@ -40,6 +42,7 @@ interface TimeTableProps {
 const TimeTable: React.FC<TimeTableProps> = ({ 
   courses = [], 
   darkMode = false,
+  palette = 'default',
   isSelectMode = false,
   onCellClick,
   selectedSlots = [],
@@ -164,7 +167,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
           className={`px-4 py-3 text-xs text-center border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
           style={{ height: '80px' }}
         >
-          <div className={`${darkMode ? 'text-red-500' : 'text-red-600'} text-lg font-medium`}>
+          <div className={`${darkMode ? 'text-red-500' : 'text-red-600'} text-sm font-medium`}>
             {slotItem.content}
           </div>
         </td>
@@ -177,11 +180,12 @@ const TimeTable: React.FC<TimeTableProps> = ({
     const courseInfo = findCourseForSlot(slotItem);
     const interactionClass = isSelectMode && getCellInteractionClass ? getCellInteractionClass(slotItem, selectedSlots, existingSlots) : '';
     const isDisabled = isSelectMode && slotItem.split('/').every(s => existingSlots.includes(s));
+    const colorClass = courseInfo ? PALETTES[palette].colors[courseInfo.course.colorIndex] : '';
 
     return (
       <td 
         key={key} 
-        className={`border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${!isSelectMode && courseInfo ? getColorClass(courseInfo.course, courseInfo.index, courses) : ''} ${isSelectMode ? 'p-0' : 'px-4 py-3'}`}
+        className={`border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${!isSelectMode ? colorClass : ''} ${isSelectMode ? 'p-0' : 'px-4 py-3'}`}
         style={isSelectMode ? cellStyle : headerCellStyle} 
       >
         {isSelectMode ? ((() => {
@@ -192,7 +196,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
           let dynamicButtonClasses = interactionClass;
           if (!shouldHideThisCellContent) {
             if (isThisCellSelected) {
-              dynamicButtonClasses += ` ${getColorClass(courseInfo.course, courseInfo.index, courses)} flex-col`;
+              dynamicButtonClasses += ` ${colorClass} flex-col`;
             } else {
               dynamicButtonClasses += darkMode ? ' text-gray-400' : ' text-gray-500';
             }
@@ -215,14 +219,14 @@ const TimeTable: React.FC<TimeTableProps> = ({
                     {slotItem.includes('/') ? (
                       slotItem.split('/').map((part: string, i: number, arr: string[]) => (
                         <React.Fragment key={i}>
-                          <span className={part === courseInfo.matchedSlotPart ? 'text-base font-semibold' : 'text-[11px]'}>
+                          <span className={part === courseInfo.matchedSlotPart ? (part.length > 3 ? 'text-sm font-semibold' : 'text-base font-semibold') : 'text-[11px]'}>
                             {part}
                           </span>
                           {i < arr.length - 1 && '/'}
                         </React.Fragment>
                       ))
                     ) : (
-                      <span className={slotItem === courseInfo.matchedSlotPart ? 'text-base font-semibold' : 'text-[11px]'}>
+                      <span className={slotItem === courseInfo.matchedSlotPart ? (slotItem.length > 3 ? 'text-sm font-semibold' : 'text-base font-semibold') : 'text-[11px]'}>
                         {slotItem}
                       </span>
                     )}
@@ -240,14 +244,14 @@ const TimeTable: React.FC<TimeTableProps> = ({
               {slotItem.includes('/') ? (
                 slotItem.split('/').map((part: string, i: number, arr: string[]) => (
                   <React.Fragment key={i}>
-                    <span className={part === courseInfo.matchedSlotPart ? 'text-base' : 'text-[11px]'}>
+                    <span className={part === courseInfo.matchedSlotPart ? (part.length > 3 ? 'text-sm' : 'text-base') : 'text-[11px]'}>
                       {part}
                     </span>
                     {i < arr.length - 1 && '/'}
                   </React.Fragment>
                 ))
               ) : (
-                <span className={slotItem === courseInfo.matchedSlotPart ? 'text-base' : ''}>
+                <span className={slotItem === courseInfo.matchedSlotPart ? (slotItem.length > 3 ? 'text-sm' : 'text-base') : ''}>
                   {slotItem}
                 </span>
               )}
@@ -283,7 +287,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
             {/* Lunch column - appears only once */}
             <td 
               rowSpan={7} 
-              className={`font-semibold text-center align-middle border-r ${darkMode ? 'bg-gray-700/80 text-gray-300 border-gray-700' : 'bg-gray-100 text-gray-900 border-gray-200'}`}
+              className={`font-semibold text-center align-middle border-r ${darkMode ? 'bg-gray-700/80 text-gray-300 border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'}`}
               style={{
                 width: '40px',
                 minWidth: '40px'
@@ -340,7 +344,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
 
           {/* Days and Periods */}
           {dayRows.map(({ day, slots: dayColumnSlots }) => ( // Renamed slots to dayColumnSlots to avoid conflict
-            <tr key={day} className={`transition-colors ${darkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50/50'}`}>
+            <tr key={day} className={`transition-colors`}>
               <td className={`px-4 py-3 text-sm font-medium border-r ${darkMode ? 'text-gray-300 border-gray-700 bg-gray-700/80' : 'text-gray-900 border-gray-200 bg-gray-50'}`} style={{ width: '80px' }}>
                 {day}
               </td>

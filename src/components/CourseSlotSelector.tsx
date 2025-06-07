@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { IoClose } from 'react-icons/io5';
-import FacultyPreferenceModal from './FacultyPreferenceModal';
+import { PALETTES } from '../utils/colorUtils';
 
 // Define slot conflicts here or import from a shared utility
 const slotConflictPairs = [
@@ -83,8 +83,14 @@ interface CourseSlotSelectorProps {
     includeLabCourse?: boolean;
     facultyLabAssignments?: Map<string, string[]>;
   }) => void;
+  onAddFaculty: (data: {
+    courseName: string;
+    selectedSlots: string[];
+    credits: number;
+    colorIndex: number;
+  }) => void;
   existingSlots?: string[]; // Add this prop to track already selected slots
-  editingCourse?: { name: string; slots: string[]; credits: number; facultyPreferences?: string[]; facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }> }; // Add prop for editing
+  editingCourse?: { name: string; slots: string[]; credits: number; facultyPreferences?: string[]; facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>; colorIndex: number }; // Add prop for editing
   referenceElement?: HTMLElement;
   placement?: 'bottom' | 'top' | 'left' | 'right';
   isMorningTheory?: boolean;
@@ -92,12 +98,15 @@ interface CourseSlotSelectorProps {
   blockedSlots?: string[];
   slotConflictPairs?: string[][];
   preSelectedSlots?: string[];
+  palette: keyof typeof PALETTES;
+  colorIndex: number;
 }
 
 const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
   isOpen,
   onClose,
   onSubmit,
+  onAddFaculty,
   existingSlots = [], // Default to empty array if not provided
   editingCourse = undefined, // Default to undefined if not provided
   referenceElement,
@@ -106,15 +115,13 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
   isFirstFaculty = false,
   blockedSlots = [],
   slotConflictPairs = [],
-  preSelectedSlots = []
+  preSelectedSlots = [],
+  palette,
+  colorIndex
 }) => {
   const [courseName, setCourseName] = useState('');
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [credits, setCredits] = useState(0); // Default to 0 credits
-  const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
-  const [tempCourseData, setTempCourseData] = useState<{courseName: string; selectedSlots: string[]; credits: number} | null>(null);
-  const [transientFacultyPreferences, setTransientFacultyPreferences] = useState<string[] | undefined>(undefined);
-  const [transientLabAssignments, setTransientLabAssignments] = useState<Map<string, string[]> | undefined>(undefined);
   const [activeTimingTab, setActiveTimingTab] = useState<'morning' | 'evening'>('morning'); // New state for tabs
   const [creditInputString, setCreditInputString] = useState('0'); // New state for credit input text
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
@@ -125,12 +132,15 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
   const eveningTheorySlots = eveningTheorySlotsConst;
 
   useEffect(() => {
-    if (isOpen && !isFacultyModalOpen) {
+    if (isOpen) {
       document.body.style.overflow = 'hidden';
-    } else if (!isOpen) {
-      document.body.style.overflow = 'auto';
+      // When this modal is open, ensure the main dashboard doesn't scroll.
     }
-  }, [isOpen, isFacultyModalOpen]);
+    // Cleanup function to restore scroll when the modal is closed/unmounted
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -139,25 +149,10 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
         setSelectedSlots(editingCourse.slots);
         setCredits(editingCourse.credits);
         setCreditInputString(editingCourse.credits.toString());
-        setTransientFacultyPreferences(editingCourse.facultyPreferences || []);
-        if (editingCourse.facultyLabAssignments) {
-          const labAssignmentsMap = new Map<string, string[]>();
-          editingCourse.facultyLabAssignments.forEach(assignment => {
-            labAssignmentsMap.set(assignment.facultyName, assignment.slots);
-          });
-          setTransientLabAssignments(labAssignmentsMap);
-        } else {
-          setTransientLabAssignments(undefined);
-        }
       } else {
-        setCourseName('');
-        setSelectedSlots([]);
-        setCredits(0);
-        setCreditInputString('0');
-        setTransientFacultyPreferences(undefined);
-        setTransientLabAssignments(undefined);
+        // Reset form for new course
+        resetForm();
       }
-      setTempCourseData(null);
     }
   }, [isOpen, editingCourse]);
 
@@ -169,14 +164,9 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
     }
   }, [activeTimingTab, morningTheorySlots, eveningTheorySlots]);
 
-  const handleForceClose = () => {
-    setIsFacultyModalOpen(false);
-    onClose();
-  };
-
   const handleCloseModal = () => {
     // Just close without saving any changes
-    resetForm(); // This will also clear transients
+    resetForm();
     onClose();
   };
 
@@ -246,65 +236,42 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
 
   const handleCourseDetailSubmit = () => {
     if (courseName && selectedSlots.length > 0) {
-      // Store course data and open faculty modal
-      setTempCourseData({
+      onAddFaculty({
         courseName,
         selectedSlots,
-        credits
+        credits,
+        colorIndex: colorIndex,
       });
-      setIsFacultyModalOpen(true);
     }
   };
 
   const handleSkipFaculty = () => {
     if (courseName && selectedSlots.length > 0) {
-      // Submit course without faculty preferences
-      // For editing, preserve existing faculty preferences if available
-      // If transientFacultyPreferences exist, they represent the latest state from Faculty Modal (even if just closed via back/cancel)
-      // If editing and no transientFacultyPreferences, use editingCourse.facultyPreferences
-      const facultyToSubmit = transientFacultyPreferences !== undefined ? transientFacultyPreferences : (editingCourse?.facultyPreferences || []);
-      const labsToSubmit = transientLabAssignments !== undefined ? transientLabAssignments : 
-        (editingCourse?.facultyLabAssignments ? new Map(editingCourse.facultyLabAssignments.map(a => [a.facultyName, a.slots])) : undefined);
-      
       onSubmit({
         courseName,
         selectedSlots,
         credits,
-        facultyPreferences: facultyToSubmit,
-        includeLabCourse: !!(labsToSubmit && labsToSubmit.size > 0 && facultyToSubmit.length > 0),
-        facultyLabAssignments: labsToSubmit
+        facultyPreferences: [], // No faculty preferences
       });
-      
-      // Reset states and close modal
-      resetForm();
-      onClose();
+      onClose(); // This is crucial to close the modal
     }
   };
 
-  const handleFacultyPreferenceSubmit = (
-    facultyPreferencesFromModal: string[], 
-    includeLabCourse?: boolean, 
-    facultyLabAssignmentsFromModal?: Map<string, string[]>
-  ) => {
-    if (tempCourseData) {
+  const handleConfirmEdit = () => {
+    if (courseName && selectedSlots.length > 0) {
       onSubmit({
-        ...tempCourseData,
-        facultyPreferences: facultyPreferencesFromModal,
-        includeLabCourse: includeLabCourse,
-        facultyLabAssignments: facultyLabAssignmentsFromModal,
+        courseName,
+        selectedSlots,
+        credits,
+        // When just confirming an edit from this modal, we assume no faculty change.
+        // Faculty changes are handled through the "Edit Faculty" button on the card.
+        facultyPreferences: editingCourse?.facultyPreferences || [],
+        includeLabCourse: !!editingCourse?.facultyLabAssignments, 
+        facultyLabAssignments: editingCourse?.facultyLabAssignments 
+          ? new Map(editingCourse.facultyLabAssignments.map(a => [a.facultyName, a.slots]))
+          : undefined,
       });
-    }
-    handleCloseModal(); // This will close both modals and reset state
-  };
-
-  const handleFacultyModalClose = (currentFacultyPreferences?: string[], currentLabAssignments?: Map<string, string[]>) => {
-    setIsFacultyModalOpen(false);
-    // Persist faculty preferences temporarily
-    if (currentFacultyPreferences !== undefined) {
-      setTransientFacultyPreferences(currentFacultyPreferences);
-    }
-    if (currentLabAssignments !== undefined) {
-      setTransientLabAssignments(currentLabAssignments);
+      onClose();
     }
   };
 
@@ -313,9 +280,6 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
     setSelectedSlots([]);
     setCredits(0); // Reset credits to 0
     setCreditInputString('0'); // Reset creditInputString
-    setTempCourseData(null);
-    setTransientFacultyPreferences(undefined); // Clear transients
-    setTransientLabAssignments(undefined);
   };
 
   // Get slot rows based on the active timing tab
@@ -330,15 +294,20 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
     return rows;
   };
 
+  const isLabAssociated = () => {
+    // Implement the logic to determine if a lab course is associated
+    return false; // Placeholder return, actual implementation needed
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
-      <div className={`fixed inset-0 flex items-center justify-center z-50 ${isFacultyModalOpen ? 'hidden' : ''}`}>
+      <div className={`fixed inset-0 flex items-center justify-center z-50`}>
         <div className="fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm"></div>
         <div className="bg-white rounded-2xl p-6 w-[700px] max-h-[90vh] overflow-y-auto z-10 relative">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900">Enter Course Details</h2>
+            <h2 className="text-2xl font-semibold text-gray-900">{editingCourse ? 'Edit Course Details' : 'Enter Course Details'}</h2>
             <button 
               onClick={handleCloseModal}
               className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -501,24 +470,33 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
             {editingCourse ? (
               // Show only confirm/cancel when editing
               <>
-                {/* Cancel button removed as X button in header serves this purpose */}
                 <button
-                  onClick={() => handleSkipFaculty()} // This is effectively the 'Confirm' for editing
+                  onClick={handleConfirmEdit}
                   disabled={!courseName || selectedSlots.length === 0}
                   className={`
-                    px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors
+                    px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors
                     ${courseName && selectedSlots.length > 0
-                      ? 'bg-blue-500 hover:bg-blue-600'
+                      ? 'bg-black'
                       : 'bg-gray-300 cursor-not-allowed'
                     }
                   `}
                 >
-                  Confirm
+                  Confirm Changes
                 </button>
               </>
             ) : (
               // Show regular options for new course creation
               <>
+                <button
+                  onClick={handleSkipFaculty}
+                  disabled={!courseName || selectedSlots.length === 0}
+                  className={`
+                    px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-colors
+                    ${!courseName || selectedSlots.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}
+                  `}
+                >
+                  Skip & Add Course
+                </button>
                 <button
                   onClick={handleCourseDetailSubmit}
                   disabled={!courseName || selectedSlots.length === 0}
@@ -530,31 +508,13 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
                     }
                   `}
                 >
-                  Add Faculty
+                  Next: Add Faculty
                 </button>
               </>
             )}
           </div>
         </div>
       </div>
-
-      {/* Faculty Preference Modal */}
-      {tempCourseData && (
-        <FacultyPreferenceModal
-          isOpen={isFacultyModalOpen}
-          onClose={handleFacultyModalClose}
-          onForceClose={handleForceClose}
-          onSubmit={handleFacultyPreferenceSubmit}
-          courseName={`${tempCourseData.courseName} ${tempCourseData.selectedSlots.join('+')}`}
-          courseCredits={tempCourseData.credits}
-          initialFacultyPreferences={transientFacultyPreferences !== undefined ? transientFacultyPreferences : (editingCourse ? editingCourse.facultyPreferences : [])}
-          initialFacultyLabAssignments={transientLabAssignments !== undefined ? transientLabAssignments : 
-            (editingCourse?.facultyLabAssignments ? new Map(editingCourse.facultyLabAssignments.map(a => [a.facultyName, a.slots])) : undefined)}
-          allCurrentlyUsedSlots={blockedSlots}
-          slotConflictPairs={slotConflictPairs}
-          isLabCourseAssociated={false} // In add mode, no lab is associated yet
-        />
-      )}
     </>
   );
 };

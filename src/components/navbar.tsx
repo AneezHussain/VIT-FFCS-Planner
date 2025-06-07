@@ -67,11 +67,15 @@ const Navbar: React.FC<NavbarProps> = ({
 
           {user && (
           <div className="relative" ref={profileRef}>
-            <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors">
+            <button
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className={`h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 transition-colors
+                ${isProfileOpen ? 'ring-2 ring-offset-2 ring-black' : 'hover:ring-2 hover:ring-offset-2 hover:ring-black'}`}
+            >
               {user.photoURL ? (
-                <img src={user.photoURL} alt="User Avatar" className="h-10 w-10 rounded-full object-cover" />
+                <img src={user.photoURL} alt="User Avatar" className="h-12 w-12 rounded-full object-cover" />
               ) : (
-                <AiOutlineUser className="h-6 w-6" />
+                <AiOutlineUser className="h-8 w-8" />
               )}
             </button>
 

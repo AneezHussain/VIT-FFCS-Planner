@@ -95,7 +95,6 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
   useEffect(() => {
     if (isOpen) {
         setFacultySpecificLabSlots(initialAssignments ? new Map(initialAssignments) : new Map());
-        document.body.style.overflow = 'hidden'; // LabModal is top-most.
         const facultyPrefModal = document.querySelector('.faculty-preference-modal');
         if (facultyPrefModal) {
             facultyPrefModal.classList.add('lab-modal-open');
@@ -129,14 +128,7 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
       }`}>
         {/* New header with Back button on left and X button on right */}
         <div className="flex justify-between items-center mb-3">
-          {/* Back button - existing functionality */}
-          <button 
-            onClick={onClose}
-            className="text-gray-600 hover:text-blue-600 transition-colors flex items-center"
-            aria-label="Back"
-          >
-            <IoArrowBack size={24} />
-          </button>
+          <div className="w-6 h-6" /> {/* Placeholder to keep the X on the right */}
           {/* New X Close button */}
           <button 
             onClick={onForceClose}

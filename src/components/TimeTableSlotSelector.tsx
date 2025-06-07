@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { IoClose } from 'react-icons/io5';
 import TimeTable from './TimeTable';
-import { getColorClass } from '../utils/colorUtils';
+import { getColorClass, PALETTES } from '../utils/colorUtils';
 
 // Define the Course interface/type
 interface Course {
   name: string;
   slots: string[];
   credits: number;
+  colorIndex: number;
   facultyPreferences?: string[]; // Added
   facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>; // Added
   // Add other properties like color if your TimeTable/getColorClass expects them directly on the course object
@@ -23,7 +24,10 @@ interface TimeTableSlotSelectorProps {
     credits: number;
   }) => void;
   otherCoursesData?: Course[];
+  editingCourse?: Course;
   slotConflictPairs: string[][]; // Added prop
+  palette: keyof typeof PALETTES;
+  colorIndex: number;
 }
 
 const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
@@ -31,7 +35,10 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
   onClose,
   onSubmit,
   otherCoursesData = [],
-  slotConflictPairs // Added prop
+  editingCourse,
+  slotConflictPairs, // Added prop
+  palette,
+  colorIndex
 }) => {
   const [courseName, setCourseName] = useState('');
   const [credits, setCredits] = useState(0);
@@ -92,20 +99,34 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
     const currentSelectingCourse: Course = {
       name: courseName || 'Selecting...',
       slots: selectedSlots,
-      credits: credits
+      credits: credits,
+      colorIndex: colorIndex
     };
     return [...(otherCoursesData || []), currentSelectingCourse];
-  }, [otherCoursesData, courseName, selectedSlots, credits]);
+  }, [otherCoursesData, courseName, selectedSlots, credits, colorIndex]);
   
-  const selectingCourseColorClass = useMemo(() => getColorClass(
-    { name: courseName || 'Selecting...', slots: selectedSlots, credits }, 
-    coursesToDisplayInTimeTable.length -1, 
-    coursesToDisplayInTimeTable
-  ), [courseName, selectedSlots, credits, coursesToDisplayInTimeTable]);
+  const selectingCourseColorClass = useMemo(() => PALETTES[palette].colors[colorIndex], [palette, colorIndex]);
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+
+      if (editingCourse) {
+        // If editing, populate the form
+        setCourseName(editingCourse.name);
+        setCredits(editingCourse.credits);
+        setCreditInputString(editingCourse.credits.toString());
+        setSelectedSlots(editingCourse.slots);
+        setSlotInputString(editingCourse.slots.join('+'));
+      } else {
+        // Otherwise, reset for a new course
+        setCourseName('');
+        setCredits(0);
+        setCreditInputString('0');
+        setSelectedSlots([]);
+        setSlotInputString('');
+      }
+
       const handleClickOutside = (e: MouseEvent) => {
         const target = e.target as HTMLElement;
         if (!target.closest('.timetable-container') && !target.closest('.slot-popup')) {
@@ -113,19 +134,21 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
         }
       };
       document.addEventListener('mousedown', handleClickOutside);
+
       return () => {
         document.body.style.overflow = 'auto';
         document.removeEventListener('mousedown', handleClickOutside);
       };
     } else {
+      // Reset state when the modal closes
       setCourseName('');
       setCredits(0);
       setCreditInputString('0');
       setSelectedSlots([]);
       setShowSlotPopup(false);
-      setSlotInputString(''); // Reset slot input string when modal opens/closes
+      setSlotInputString('');
     }
-  }, [isOpen]);
+  }, [isOpen, editingCourse]);
 
   const handleCellClick = (event: React.MouseEvent<HTMLButtonElement>, cellSlots: string) => {
     const rawSlotsInCell = cellSlots.split('/');
@@ -253,8 +276,8 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
         selectedSlots,
         credits
       });
-      onClose();
     }
+    onClose();
   };
 
   const getCellClickableClass = (
@@ -324,7 +347,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
       <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm"></div>
       <div className="bg-white rounded-2xl p-6 w-[90vw] z-10 relative">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900">Select Course Slots</h2>
+          <h2 className="text-2xl font-semibold text-gray-900">{editingCourse ? 'Edit Course Slots' : 'Select Course Slots'}</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-red-500 transition-colors">
             <IoClose size={24} />
           </button>
@@ -341,6 +364,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
               existingSlots={allExistingSlots} // All slots from other courses
               getCellInteractionClass={(cellSlots: string) => getCellClickableClass(cellSlots, selectedSlots, allExistingSlots, showSlotPopup && selectedCell === cellSlots)}
               hideContentForCell={showSlotPopup && selectedCell ? selectedCell : undefined}
+              palette={palette}
             />
           </div>
 

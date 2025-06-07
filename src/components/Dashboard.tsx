@@ -1,12 +1,10 @@
 import React, { useState, useRef, useCallback, type DragEvent, useEffect } from 'react';
-import { AiOutlineMenu, AiOutlineHome, AiOutlineSetting, AiOutlineUser, AiOutlineTeam, AiOutlinePlus, AiOutlineShareAlt, AiOutlineUpload, AiOutlineClose, AiOutlineFile, AiOutlineEdit, AiOutlineDelete, AiOutlineSearch, AiOutlineCloud, AiOutlineCalendar, AiOutlineQuestionCircle } from 'react-icons/ai';
+import { AiOutlineMenu, AiOutlineHome, AiOutlineSetting, AiOutlineUser, AiOutlinePlus, AiOutlineShareAlt, AiOutlineUpload, AiOutlineClose, AiOutlineFile, AiOutlineEdit, AiOutlineDelete, AiOutlineSearch, AiOutlineCloud, AiOutlineCalendar, AiOutlineQuestionCircle, AiOutlineBgColors } from 'react-icons/ai';
 import { BsSun, BsMoonStars } from 'react-icons/bs';
-import { BiConversation } from 'react-icons/bi';
 import { IoClose } from 'react-icons/io5';
 import { VscDebugRestart } from 'react-icons/vsc';
 import TimeTable from './TimeTable';
 import CourseSlotSelector from './CourseSlotSelector';
-import Communities from './Communities';
 import TimeTableModal from './TimeTableModal';
 import FacultyPreferenceModal from './FacultyPreferenceModal';
 import ExportModal from './ExportModal';
@@ -14,6 +12,7 @@ import FacultyList from './FacultyList';
 import Sidebar from './Sidebar';
 import CourseCards from './CourseCards';
 import TimeTableSlotSelector from './TimeTableSlotSelector';
+import { PALETTES, getNextColorIndex } from '../utils/colorUtils';
 
 // Define slot conflicts centrally here or import from a shared utility
 const slotConflictPairs = [
@@ -38,6 +37,7 @@ interface Course {
   name: string;
   slots: string[];
   credits: number;
+  colorIndex: number;
   facultyPreferences?: string[];
   facultyLabAssignments?: Array<{ facultyName: string; slots: string[] }>;
   creationMode?: 'standard' | 'custom';
@@ -57,17 +57,33 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [tempCourseData, setTempCourseData] = useState<{ courseName: string; selectedSlots: string[]; credits: number } | null>(null);
+  const [tempCourseData, setTempCourseData] = useState<{ courseName: string; selectedSlots: string[]; credits: number; facultyPreferences?: string[]; includeLabCourse?: boolean; facultyLabAssignments?: Map<string, string[]> } | null>(null);
   const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
   const [editingCourseIndex, setEditingCourseIndex] = useState<number | null>(null);
   const [isTimeTableSlotModalOpen, setIsTimeTableSlotModalOpen] = useState(false);
   const prevScrollPos = useRef(0);
   const [facultySearchQuery, setFacultySearchQuery] = useState('');
   const [preferredSlot, setPreferredSlot] = useState<'standard' | 'custom'>('standard');
+  const [selectedPalette, setSelectedPalette] = useState<keyof typeof PALETTES>('default');
+  const [tempColorIndex, setTempColorIndex] = useState<number>(0);
+  const [isPaletteDropdownOpen, setIsPaletteDropdownOpen] = useState(false);
 
   // Refs for the import, export, and Google Drive buttons
   const exportButtonRef = useRef<HTMLButtonElement>(null);
   const importButtonRef = useRef<HTMLButtonElement>(null);
+  const paletteDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (paletteDropdownRef.current && !paletteDropdownRef.current.contains(event.target as Node)) {
+        setIsPaletteDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [paletteDropdownRef]);
 
   const getBaseCourseName = (name: string) => name.replace(/ (Lab|Edit Lab|Edit Faculty|Add Lab)$/, '').trim();
 
@@ -107,7 +123,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
       const csvHeaders = lines[0].split(',');
       
       // Check if the CSV has the expected format
-      const expectedHeaders = ['courseName', 'slots', 'credits', 'facultyPreferences', 'preferredSlot', 'creationMode', 'facultyLabAssignments'];
+      const expectedHeaders = ['courseName', 'slots', 'credits', 'colorIndex', 'facultyPreferences', 'preferredSlot', 'creationMode', 'facultyLabAssignments'];
       const isValidFormat = expectedHeaders.every(header => csvHeaders.includes(header));
       
       if (!isValidFormat) {
@@ -142,6 +158,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
           name: rowData['courseName'],
           slots: rowData['slots'] ? rowData['slots'].split('|') : [],
           credits: parseInt(rowData['credits']),
+          colorIndex: parseInt(rowData['colorIndex']) || 0,
           facultyPreferences: rowData['facultyPreferences'] ? rowData['facultyPreferences'].split('|').filter(Boolean) : [],
           facultyLabAssignments: rowData['facultyLabAssignments'] 
             ? rowData['facultyLabAssignments'].split(';').filter(Boolean).map((assignment: string) => {
@@ -183,6 +200,13 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
     handleFileImport(file);
   };
 
+  const handleAddFaculty = (data: { courseName: string; selectedSlots: string[]; credits: number; colorIndex: number; }) => {
+    setTempCourseData(data);
+    setTempColorIndex(data.colorIndex);
+    setIsCourseModalOpen(false); // Close course modal
+    setIsFacultyModalOpen(true); // Open faculty modal
+  };
+
   const handleCourseSubmit = (data: { 
     courseName: string; 
     selectedSlots: string[]; 
@@ -203,6 +227,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
         name: data.courseName, 
         slots: data.selectedSlots, 
         credits: data.credits, 
+        colorIndex: updatedCourses[editingCourseIndex].colorIndex,
         facultyPreferences: theoryFacultyPrefs,
         facultyLabAssignments: facultyLabAssignmentsArray || updatedCourses[editingCourseIndex].facultyLabAssignments
       };
@@ -211,7 +236,8 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
         const labCourse: Course = {
           name: `${data.courseName} Lab`,
           slots: data.selectedSlots, 
-          credits: 1, 
+          credits: 1,
+          colorIndex: updatedCourses[editingCourseIndex].colorIndex,
           facultyPreferences: theoryFacultyPrefs, 
           facultyLabAssignments: facultyLabAssignmentsArray 
         };
@@ -224,11 +250,14 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
       }
       setEditingCourseIndex(null);
     } else {
+      const newColorIndex = getNextColorIndex(courses);
       const newTheoryCourse: Course = {
         name: data.courseName, 
         slots: data.selectedSlots, 
-        credits: data.credits, 
+        credits: data.credits,
+        colorIndex: newColorIndex,
         facultyPreferences: theoryFacultyPrefs,
+        creationMode: 'standard'
       };
       updatedCourses.push(newTheoryCourse);
 
@@ -237,14 +266,15 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
           name: `${data.courseName} Lab`,
           slots: data.selectedSlots,
           credits: 1,
+          colorIndex: newColorIndex,
           facultyPreferences: theoryFacultyPrefs,
-          facultyLabAssignments: facultyLabAssignmentsArray
+          facultyLabAssignments: facultyLabAssignmentsArray,
+          creationMode: 'standard'
         };
         updatedCourses.push(newLabCourse);
       }
     }
     setCourses(updatedCourses);
-    setIsCourseModalOpen(false);
   };
 
   const handleFacultyPreferenceSubmit = (
@@ -255,6 +285,47 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
     const facultyLabAssignmentsArray = facultyLabAssignmentsMap
       ? Array.from(facultyLabAssignmentsMap.entries()).map(([facultyName, slots]) => ({ facultyName, slots }))
       : undefined;
+
+    if (tempCourseData && tempCourseData.courseName.includes('Add Lab')) {
+      const baseCourseName = getBaseCourseName(tempCourseData.courseName);
+      const theoryCourseIndex = courses.findIndex(c => c.name === baseCourseName);
+
+      if (theoryCourseIndex !== -1) {
+        const theoryCourse = courses[theoryCourseIndex];
+        const labCourse: Course = {
+          name: `${baseCourseName} Lab`,
+          slots: theoryCourse.slots, // Initially same as theory
+          credits: 1, // Labs are typically 1 credit
+          colorIndex: theoryCourse.colorIndex,
+          facultyPreferences: facultyPreferences,
+          facultyLabAssignments: facultyLabAssignmentsArray,
+          creationMode: theoryCourse.creationMode,
+        };
+        
+        // Add theory faculty preferences as well
+        const updatedTheoryCourse = {
+            ...theoryCourse,
+            facultyPreferences: facultyPreferences,
+            facultyLabAssignments: facultyLabAssignmentsArray,
+        };
+
+        setCourses(prevCourses => {
+            const newCourses = [...prevCourses];
+            newCourses[theoryCourseIndex] = updatedTheoryCourse;
+            
+            // Check if lab already exists to avoid duplicates
+            const existingLabIndex = newCourses.findIndex(c => c.name === labCourse.name);
+            if(existingLabIndex === -1) {
+                newCourses.push(labCourse);
+            }
+            return newCourses;
+        });
+      }
+      setIsFacultyModalOpen(false);
+      setTempCourseData(null);
+      setEditingCourseIndex(null);
+      return; // Exit after handling
+    }
 
     if (editingCourseIndex !== null) {
       // We are editing an existing course's faculty
@@ -280,6 +351,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
             name: labCourseName,
             slots: originalCourse.slots, // Labs share theory slots
             credits: 1,
+            colorIndex: originalCourse.colorIndex,
             facultyPreferences: facultyPreferences,
             facultyLabAssignments: facultyLabAssignmentsArray,
             creationMode: originalCourse.creationMode
@@ -311,6 +383,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
         name: baseCourseName,
         slots: tempCourseData.selectedSlots,
         credits: tempCourseData.credits,
+        colorIndex: tempColorIndex,
         facultyPreferences: facultyPreferences,
         facultyLabAssignments: facultyLabAssignmentsArray,
         creationMode: 'standard'
@@ -323,6 +396,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
           name: `${baseCourseName} Lab`,
           slots: tempCourseData.selectedSlots,
           credits: 1,
+          colorIndex: tempColorIndex,
           facultyPreferences: facultyPreferences,
           facultyLabAssignments: facultyLabAssignmentsArray,
           creationMode: 'standard'
@@ -397,20 +471,21 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
         ...updatedCourses[editingCourseIndex],
         name: data.courseName, 
         slots: data.selectedSlots, 
-        credits: data.credits
+        credits: data.credits,
       };
       setEditingCourseIndex(null);
     } else {
       const newTheoryCourse: Course = {
         name: data.courseName, 
         slots: data.selectedSlots, 
-        credits: data.credits
+        credits: data.credits,
+        colorIndex: tempColorIndex,
+        creationMode: 'custom',
       };
       updatedCourses.push(newTheoryCourse);
     }
     
     setCourses(updatedCourses);
-    setIsTimeTableSlotModalOpen(false);
   };
 
   // Add getAllSelectedSlots function
@@ -445,10 +520,11 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
   // Handle Edit Course
   const handleEditCourse = (index: number) => {
     setEditingCourseIndex(index);
-    // Open the appropriate modal based on selected preference
-    if (preferredSlot === 'custom') {
+    const courseToEdit = courses[index];
+    // Open the appropriate modal based on the course's creationMode
+    if (courseToEdit.creationMode === 'custom') {
       setIsTimeTableSlotModalOpen(true);
-    } else {
+    } else { // 'standard' or undefined (for old data)
       setIsCourseModalOpen(true);
     }
   };
@@ -463,6 +539,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
       credits: course.credits,
     };
     setTempCourseData(tempData);
+    setTempColorIndex(course.colorIndex);
 
     // If it's a lab course, open the lab slot modal directly
     if (course.name.endsWith(' Lab')) {
@@ -490,6 +567,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
   // Handle Add Course
   const handleAddCourse = () => {
     setEditingCourseIndex(null);
+    setTempColorIndex(getNextColorIndex(courses));
     // Open the appropriate modal based on selected preference
     if (preferredSlot === 'custom') {
       setIsTimeTableSlotModalOpen(true);
@@ -511,6 +589,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
         credits: theoryCourse.credits,
       };
       setTempCourseData(tempData);
+      setTempColorIndex(theoryCourse.colorIndex);
       setIsFacultyModalOpen(true);
     } else {
       // Faculty preferences exist, check if lab course exists
@@ -525,6 +604,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
           credits: theoryCourse.credits,
         };
         setTempCourseData(tempData);
+        setTempColorIndex(theoryCourse.colorIndex);
         setIsFacultyModalOpen(true);
       } else {
         // No lab course exists yet, go to faculty modal first
@@ -534,6 +614,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
           credits: theoryCourse.credits,
         };
         setTempCourseData(tempData);
+        setTempColorIndex(theoryCourse.colorIndex);
         setIsFacultyModalOpen(true);
       }
     }
@@ -541,11 +622,12 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
 
   // Add exportDataToCSV function
   const exportDataToCSV = (userName?: string, message?: string): string => {
-    const exportCsvHeaders = ['courseName', 'slots', 'credits', 'facultyPreferences', 'preferredSlot', 'facultyLabAssignments'];
+    const exportCsvHeaders = ['courseName', 'slots', 'credits', 'colorIndex', 'facultyPreferences', 'preferredSlot', 'facultyLabAssignments'];
     const csvData = courses.map(course => ({
       courseName: course.name,
       slots: course.slots.join('|'),
       credits: course.credits,
+      colorIndex: course.colorIndex,
       facultyPreferences: course.facultyPreferences?.join('|') || '',
       preferredSlot: preferredSlot,
       facultyLabAssignments: course.facultyLabAssignments
@@ -565,8 +647,6 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
 
   const renderContent = () => {
     switch (currentPage) {
-      case 'communities':
-        return <Communities />;
       case 'dashboard':
         const courseBeingEdited = editingCourseIndex !== null ? courses[editingCourseIndex] : null;
         let isLabPresent = false;
@@ -591,6 +671,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
                         onClick={() => {
                           setPreferredSlot('standard');
                           setIsTimeTableSlotModalOpen(false);
+                          setIsCourseModalOpen(false);
                         }}
                         className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${ 
                           preferredSlot === 'standard'
@@ -605,6 +686,8 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
                       <button
                         onClick={() => {
                           setPreferredSlot('custom');
+                          setIsCourseModalOpen(false);
+                          setIsTimeTableSlotModalOpen(false);
                         }}
                         className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all h-full ${ 
                           preferredSlot === 'custom'
@@ -642,6 +725,57 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
                         <VscDebugRestart size={20} />
                         <span className="font-medium">Reset</span>
                       </button>
+
+                      {/* Color Palette Selector */}
+                      <div className="relative" ref={paletteDropdownRef}>
+                        <button
+                          onClick={() => setIsPaletteDropdownOpen(!isPaletteDropdownOpen)}
+                          className="px-4 py-2 rounded-lg flex items-center space-x-2 h-12 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
+                          title="Change color palette"
+                        >
+                          <AiOutlineBgColors size={20} />
+                          <span className="font-medium">
+                            Theme: {PALETTES[selectedPalette].name}
+                          </span>
+                        </button>
+                        {isPaletteDropdownOpen && (
+                          <div
+                            className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 z-50"
+                          >
+                            <div className="absolute -top-1 right-4 w-4 h-4 bg-white border-l border-t border-gray-200 transform rotate-45"></div>
+                            <div className="p-4">
+                              <h3 className="text-sm font-semibold text-gray-800 mb-3">Color Palette</h3>
+                              <div className="space-y-3">
+                                {Object.entries(PALETTES).map(([key, palette]) => (
+                                  <button
+                                    key={key}
+                                    onClick={() => {
+                                      setSelectedPalette(key as keyof typeof PALETTES);
+                                      setIsPaletteDropdownOpen(false);
+                                    }}
+                                    className={`w-full text-left p-2 rounded-lg transition-colors flex items-center justify-between ${
+                                      selectedPalette === key ? 'bg-gray-200 text-black' : 'hover:bg-gray-100 border border-transparent'
+                                    }`}
+                                  >
+                                    <span className={`font-medium text-sm ${selectedPalette === key ? 'text-black' : 'text-gray-700'}`}>
+                                      {palette.name}
+                                    </span>
+                                    <div className="flex items-center space-x-1.5">
+                                      {palette.preview.map((color, i) => (
+                                        <div
+                                          key={i}
+                                          className="w-4 h-4 rounded-full"
+                                          style={{ backgroundColor: color }}
+                                        />
+                                      ))}
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -655,6 +789,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
                   onAddCourse={handleAddCourse}
                   onAddLab={handleAddLab}
                   blockedSlots={getAllSelectedSlots()}
+                  palette={selectedPalette}
                 />
               </div>
             </div>
@@ -665,7 +800,7 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
               <h2 className="text-xl font-semibold text-gray-700">Time Table</h2>
             </div>
             <div className="shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-200 rounded-xl overflow-hidden">
-              <TimeTable courses={courses} />
+              <TimeTable courses={courses} palette={selectedPalette} />
             </div>
 
             {/* Course Selector Modal */}
@@ -676,10 +811,13 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
                 setEditingCourseIndex(null);
               }}
               onSubmit={handleCourseSubmit}
+              onAddFaculty={handleAddFaculty}
               existingSlots={getAllSelectedSlots().filter((slot: string) => 
                 editingCourseIndex === null || !courses[editingCourseIndex].slots.includes(slot)
               )}
               editingCourse={editingCourseIndex !== null ? courses[editingCourseIndex] : undefined}
+              palette={selectedPalette}
+              colorIndex={editingCourseIndex !== null ? courses[editingCourseIndex].colorIndex : tempColorIndex}
             />
 
             <TimeTableModal
@@ -687,6 +825,8 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
               onClose={() => setTimeTableModalOpen(false)}
               onSubmit={handleTimeTableSubmit}
               existingSlots={getAllSelectedSlots()}
+              palette={selectedPalette}
+              courses={courses}
             />
 
             {/* TimeTableSlot Modal */}
@@ -697,14 +837,17 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
                 setEditingCourseIndex(null);
               }}
               onSubmit={handleTimeTableSlotSubmit}
+              editingCourse={editingCourseIndex !== null ? courses[editingCourseIndex] : undefined}
               otherCoursesData={courses.filter((course, index) => 
                 editingCourseIndex === null || index !== editingCourseIndex
               )}
               slotConflictPairs={slotConflictPairs}
+              palette={selectedPalette}
+              colorIndex={editingCourseIndex !== null ? courses[editingCourseIndex].colorIndex : tempColorIndex}
             />
 
             {/* Faculty Preference Modal */}
-            {tempCourseData && (
+            {isFacultyModalOpen && tempCourseData && (
               <FacultyPreferenceModal
                 isOpen={isFacultyModalOpen}
                 onClose={() => {
@@ -727,6 +870,8 @@ const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
                 allCurrentlyUsedSlots={getAllSelectedSlots(editingCourseIndex)}
                 slotConflictPairs={slotConflictPairs}
                 isLabCourseAssociated={isLabPresent}
+                palette={selectedPalette}
+                colorIndex={tempColorIndex}
               />
             )}
           </div>

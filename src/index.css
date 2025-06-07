@@ -76,39 +76,6 @@
   .dark .card {
     @apply bg-gray-800 text-gray-200 border-gray-700;
   }
-  
-  /* Custom classes for theme colors */
-  .table-cell-course-red {
-    @apply bg-system-red/20 text-black dark:text-system-red font-semibold;
-  }
-  
-  .table-cell-course-blue {
-    @apply bg-system-blue/20 text-black dark:text-system-blue font-semibold;
-  }
-  
-  .table-cell-course-green {
-    @apply bg-system-green/20 text-black dark:text-system-green font-semibold;
-  }
-  
-  .table-cell-course-orange {
-    @apply bg-system-orange/20 text-black dark:text-system-orange font-semibold;
-  }
-  
-  .table-cell-course-purple {
-    @apply bg-system-purple/20 text-black dark:text-system-purple font-semibold;
-  }
-  
-  .table-cell-course-teal {
-    @apply bg-system-teal/20 text-black dark:text-system-teal font-semibold;
-  }
-  
-  .table-cell-course-yellow {
-    @apply bg-system-yellow/20 text-black dark:text-system-yellow font-semibold;
-  }
-  
-  .table-cell-course-primary {
-    @apply bg-primary-500/20 text-black dark:text-primary-500 font-semibold;
-  }
 } 
 
 /* Styles from Login.css */
