@@ -1,5 +1,5 @@
 import React from 'react';
-import { AiOutlineHome, AiOutlineQuestionCircle, AiOutlineMenu } from 'react-icons/ai';
+import { AiOutlineHome, AiOutlineQuestionCircle } from 'react-icons/ai';
 
 interface SidebarProps {
   currentPage: string;
@@ -14,11 +14,17 @@ const SidebarItem: React.FC<{
   text: string; 
   onClick?: () => void;
   active?: boolean;
-}> = ({ icon, text, onClick, active }) => {
+  onClose?: () => void;
+}> = ({ icon, text, onClick, active, onClose }) => {
+  const handleClick = () => {
+    if (onClick) onClick();
+    if (onClose) onClose();
+  };
+
   return (
     <button 
-      onClick={onClick}
-      className={`w-full flex items-center justify-center space-x-3 p-3 rounded-md hover:bg-gray-100 text-gray-700 transition-all duration-200 ${
+      onClick={handleClick}
+      className={`w-full flex items-center justify-center p-3 rounded-md hover:bg-gray-100 text-gray-700 transition-all duration-200 ${
         active ? 'bg-gray-100' : ''
       }`}
       title={text}
@@ -34,28 +40,26 @@ const Sidebar: React.FC<SidebarProps> = ({
   isSidebarOpen,
   setIsSidebarOpen
 }) => {
+  const handleCloseSidebar = () => {
+    if (window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  };
+
   return (
     <>
-      {/* Toggle Button - Only visible on small screens */}
-      <button
-        className="fixed top-4 left-4 z-30 md:hidden bg-white p-2 rounded-md shadow-md"
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-      >
-        <AiOutlineMenu size={24} />
-      </button>
-
-      {/* Overlay - Only visible on small screens when sidebar is open */}
+      {/* Overlay for mobile */}
       {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={handleCloseSidebar}
         />
       )}
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-16 h-full bg-white transition-transform duration-300 ease-in-out z-20 w-20
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+        className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-white shadow-lg transition-all duration-300 ease-in-out z-40 w-20
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="h-full flex flex-col">
           <div className="my-auto p-2" style={{ transform: 'translateY(-2rem)' }}>
@@ -65,11 +69,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                 text="Dashboard" 
                 onClick={() => setCurrentPage('dashboard')}
                 active={currentPage === 'dashboard'}
+                onClose={handleCloseSidebar}
               />
               <SidebarItem 
                 icon={<AiOutlineQuestionCircle />} 
                 text="Help" 
                 onClick={() => setCurrentPage('help')}
+                active={currentPage === 'help'}
+                onClose={handleCloseSidebar}
               />
             </div>
           </div>

@@ -12,6 +12,7 @@ const AppContent: React.FC = () => {
   const importButtonRef = useRef<HTMLButtonElement>(null);
   const [currentPage, setCurrentPage] = useState('dashboard'); // Example: set current page
   const [hideNavbar, setHideNavbar] = useState(false); // Example: control navbar visibility
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   if (loading) {
     return (
@@ -30,9 +31,15 @@ const AppContent: React.FC = () => {
           importButtonRef={importButtonRef} 
           setIsImportModalOpen={setIsImportModalOpen}
           user={currentUser}
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
         />
-        {/* Dashboard might need setCurrentPage or other props if it controls navigation */}
-        <Dashboard /> 
+        <Dashboard 
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+        /> 
       </>
     );
   }

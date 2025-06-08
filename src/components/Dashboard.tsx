@@ -44,12 +44,18 @@ interface Course {
 }
 
 interface DashboardProps {
-  // onLogout is no longer needed here if Dashboard doesn't use it directly
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (isOpen: boolean) => void;
+  currentPage: string;
+  setCurrentPage: (page: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = (/*{ onLogout }*/) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [currentPage, setCurrentPage] = useState('dashboard');
+const Dashboard: React.FC<DashboardProps> = ({
+  isSidebarOpen,
+  setIsSidebarOpen,
+  currentPage,
+  setCurrentPage
+}) => {
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [isTimeTableModalOpen, setTimeTableModalOpen] = useState(false);
