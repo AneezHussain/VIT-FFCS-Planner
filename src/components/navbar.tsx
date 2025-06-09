@@ -10,6 +10,8 @@ interface NavbarProps {
   exportButtonRef: React.RefObject<HTMLButtonElement>;
   setIsImportModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIsExportModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isImportModalOpen: boolean;
+  isExportModalOpen: boolean;
   user: User | null;
 }
 
@@ -20,6 +22,8 @@ const Navbar: React.FC<NavbarProps> = ({
   exportButtonRef,
   setIsImportModalOpen,
   setIsExportModalOpen,
+  isImportModalOpen,
+  isExportModalOpen,
   user
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -49,7 +53,7 @@ const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav className={`bg-white fixed w-full z-50 ${hideNavbar ? 'hidden' : ''}`}>
-      <div className="h-16 sm:h-20 w-full flex items-center border-b-2 border-gray-200">
+      <div className="h-16 sm:h-20 w-full flex items-center border-b border-gray-200">
         <div className="w-full px-3 sm:px-6 md:px-8 lg:px-20 flex items-center justify-between transition-all duration-300">
           {/* Left side - Logo and Dashboard text */}
           <div className="flex items-center space-x-2 sm:space-x-3">
@@ -58,37 +62,42 @@ const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right side - Import and Profile */}
-          <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
-            <button
-              ref={importButtonRef}
-              onClick={() => {
-                setIsImportModalOpen(prev => !prev)
-                setIsExportModalOpen(false)
-              }}
-              className="text-gray-600 hover:text-gray-900 transition-colors p-2"
-              title="Import data from CSV"
-            >
-              <AiOutlineUpload className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
-            </button>
+          <div className="flex items-center">
+            <div className="flex items-center space-x-0.5">
+              <button
+                ref={importButtonRef}
+                onClick={() => {
+                  setIsImportModalOpen(prev => !prev)
+                  setIsExportModalOpen(false)
+                }}
+                className={`transition-colors p-2 ${isImportModalOpen ? 'text-black' : 'text-gray-700 hover:text-gray-900'}`}
+                title="Import data from CSV"
+              >
+                <AiOutlineUpload className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+              </button>
 
-            <button
-              ref={exportButtonRef}
-              onClick={() => {
-                setIsExportModalOpen(prev => !prev)
-                setIsImportModalOpen(false)
-              }}
-              className="text-gray-600 hover:text-gray-900 transition-colors p-2"
-              title="Share or export data"
-            >
-              <AiOutlineShareAlt className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
-            </button>
+              <button
+                ref={exportButtonRef}
+                onClick={() => {
+                  setIsExportModalOpen(prev => !prev)
+                  setIsImportModalOpen(false)
+                }}
+                className={`transition-colors p-2 ${isExportModalOpen ? 'text-black' : 'text-gray-700 hover:text-gray-900'}`}
+                title="Share or export data"
+              >
+                <AiOutlineShareAlt className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+              </button>
+            </div>
+
+            {/* Add minimal spacing between share and profile */}
+            <div className="w-1"></div>
 
             {user && (
-            <div className="relative ml-6 sm:ml-8" ref={profileRef}>
+            <div className="relative ml-2 sm:ml-3" ref={profileRef}>
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className={`h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 transition-colors
-                  ${isProfileOpen ? 'ring-2 ring-offset-2 ring-black' : 'hover:ring-2 hover:ring-offset-2 hover:ring-black'}`}
+                  ${isProfileOpen ? 'ring-2 ring-offset-2 ring-gray-700' : 'hover:ring-2 hover:ring-offset-2 hover:ring-gray-700'}`}
               >
                 {user.photoURL ? (
                   <img src={user.photoURL} alt="User Avatar" className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover" />

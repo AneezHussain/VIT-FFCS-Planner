@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { IoClose, IoArrowBack } from 'react-icons/io5';
 import { MdDragIndicator } from 'react-icons/md';
+import { BsInfoCircle } from 'react-icons/bs';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import LabSlotModal from './LabSlotModal';
 import { PALETTES } from '../utils/colorUtils';
@@ -40,6 +41,20 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   palette,
   colorIndex
 }) => {
+  const capitalizeCourseName = (name: string): string => {
+    const exceptions = ['and', 'of'];
+    return name
+      .split(' ')
+      .map((word) => {
+        const lowerWord = word.toLowerCase();
+        if (exceptions.includes(lowerWord)) {
+          return lowerWord;
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join(' ');
+  };
+
   const [facultyName, setFacultyName] = useState('');
   // Split faculty preferences into left and right columns
   const [leftColumnFaculty, setLeftColumnFaculty] = useState<string[]>([]);
@@ -51,6 +66,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -81,10 +97,12 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   // If slotDisplay is empty (e.g. courseName is "CSE1001" or "L1+L2" without internal spaces for pop),
   // baseNameToFilter remains the original courseName.
 
-  const courseNameDisplay = baseNameToFilter
+  const courseNameDisplayRaw = baseNameToFilter
     .split(' ')
     .filter(part => part.trim() !== '' && !['Edit', 'Faculty', 'Lab', 'Add'].includes(part))
     .join(' ');
+
+  const courseNameDisplay = capitalizeCourseName(courseNameDisplayRaw);
 
   const theoryCourseSlots = slotDisplay ? slotDisplay.split('+').filter(Boolean) : [];
 
@@ -132,6 +150,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
         setLeftColumnFaculty([]);
         setRightColumnFaculty([]);
       }
+      setValidationError(null);
       
       setShowInput(true);
       setShowPreview(false);
@@ -234,14 +253,16 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
 
   const handleAddFaculty = () => {
     if (facultyName.trim()) {
+      setValidationError(null);
       const totalFaculty = leftColumnFaculty.length + rightColumnFaculty.length;
       
       if (totalFaculty < 10) {
+        const lowerCaseFacultyName = facultyName.trim().toLowerCase();
         // Add to the appropriate column
         if (leftColumnFaculty.length < 5) {
-          setLeftColumnFaculty([...leftColumnFaculty, facultyName.trim()]);
+          setLeftColumnFaculty([...leftColumnFaculty, lowerCaseFacultyName]);
         } else {
-          setRightColumnFaculty([...rightColumnFaculty, facultyName.trim()]);
+          setRightColumnFaculty([...rightColumnFaculty, lowerCaseFacultyName]);
         }
         
         setFacultyName('');
@@ -259,13 +280,14 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
 
   const handleUpdateFaculty = (index: number, column: string) => {
     if (editingName.trim()) {
+      const lowerCaseEditingName = editingName.trim().toLowerCase();
       if (column === LEFT_COLUMN) {
         const updatedPreferences = [...leftColumnFaculty];
-        updatedPreferences[index] = editingName.trim();
+        updatedPreferences[index] = lowerCaseEditingName;
         setLeftColumnFaculty(updatedPreferences);
       } else {
         const updatedPreferences = [...rightColumnFaculty];
-        updatedPreferences[index] = editingName.trim();
+        updatedPreferences[index] = lowerCaseEditingName;
         setRightColumnFaculty(updatedPreferences);
       }
     }
@@ -297,10 +319,16 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   };
 
   const handleSubmit = () => {
-    // Combine faculty from both columns before submitting
-    const allFaculty = [...leftColumnFaculty, ...rightColumnFaculty];
+    const allFaculty = getAllFacultyPreferences();
+    const isLabCourse = courseName.toLowerCase().includes('lab');
+
+    if (isLabCourse && allFaculty.length > 0 && (!confirmedLabAssignments || confirmedLabAssignments.size === 0 || Array.from(confirmedLabAssignments.values()).every(slots => slots.length === 0))) {
+      setValidationError("A lab course must have at least one lab slot assigned to a faculty.");
+      return;
+    }
+
+    setValidationError(null);
     onSubmit(allFaculty, isLabCourseAssociated, confirmedLabAssignments);
-    onClose();
   };
 
   const handleAddLabCourse = () => {
@@ -312,17 +340,13 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
   };
 
   const handleLabSlotConfirmAndProceed = (labAssignmentsFromModal: Map<string, string[]>) => {
-    const allFaculty = [...leftColumnFaculty, ...rightColumnFaculty];
-    setConfirmedLabAssignments(labAssignmentsFromModal);
+    const allFaculty = getAllFacultyPreferences();
     onSubmit(allFaculty, true, labAssignmentsFromModal);
-    setIsLabModalOpen(false); // Close lab modal first
-    onClose(); // Then close the faculty preference modal
   };
 
   const handleSkip = () => {
-    const allFaculty = [...leftColumnFaculty, ...rightColumnFaculty];
-    onSubmit(allFaculty, false, undefined); // Submit with no lab course
-    onClose(); // Close the modal
+    // Submits with no faculty preferences
+    onSubmit([], false, undefined);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -479,7 +503,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
 
   if (!isOpen) return null;
 
-  const isActionDisabled = getAllFacultyPreferences().length === 0 && facultyName.trim() === '';
+  const isActionDisabled = getAllFacultyPreferences().length === 0;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
@@ -565,7 +589,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                                   ref={editInputRef}
                                   type="text"
                                   value={editingName}
-                                  maxLength={20}
+                                  maxLength={16}
                                   onChange={(e) => setEditingName(e.target.value)}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -623,7 +647,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                       ref={inputRef}
                       type="text"
                       value={facultyName}
-                      maxLength={20}
+                      maxLength={16}
                       onChange={(e) => setFacultyName(e.target.value)}
                       onFocus={() => setIsInputFocused(true)}
                       onBlur={() => setIsInputFocused(false)}
@@ -698,7 +722,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                                     ref={editInputRef}
                                     type="text"
                                     value={editingName}
-                                    maxLength={20}
+                                    maxLength={16}
                                     onChange={(e) => setEditingName(e.target.value)}
                                     onKeyDown={(e) => {
                                       if (e.key === 'Enter') {
@@ -756,7 +780,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                         ref={inputRef}
                         type="text"
                         value={facultyName}
-                        maxLength={20}
+                        maxLength={16}
                         onChange={(e) => setFacultyName(e.target.value)}
                         onFocus={() => setIsInputFocused(true)}
                         onBlur={() => setIsInputFocused(false)}
@@ -800,49 +824,59 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
           </div>
         </DragDropContext>
 
-        <p className="text-gray-600 mb-5 text-sm px-2 text-center">
-          Priority will be considered based on the order (1 being highest priority)
-        </p>
+        <div className="flex items-center justify-center gap-1.5 mb-5">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 translate-y-[1px] text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm text-black text-center">
+          Faculty priority will follow numeric order.
+          </p>
+        </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end items-center pt-6 mt-4">
-            {isEditMode ? (
-                <>
-                    {showConfirm && (
-                        <button
-                            onClick={handleSubmit}
-                            className="bg-black text-white font-medium text-sm py-3 px-6 rounded-lg transition-colors"
-                        >
-                            Confirm
-                        </button>
-                    )}
-                    {showEditLab && (
-                        <button
-                            onClick={handleAddLabCourse}
-                            className="bg-black text-white font-medium text-sm py-3 px-6 rounded-lg transition-colors"
-                        >
-                            Edit Lab Course
-                        </button>
-                    )}
-                </>
-            ) : (
-              <div className="flex justify-end w-full">
+        {validationError && (
+          <p className="text-sm text-red-500 mb-5 text-center px-2 italic">
+            {validationError}
+          </p>
+        )}
+
+        <div className="flex justify-end space-x-3 mt-5 pb-1">
+          {isEditMode ? (
+              <>
+                  {showConfirm && (
+                      <button
+                          onClick={handleSubmit}
+                          className="bg-black text-white font-medium text-sm py-3 px-6 rounded-lg transition-colors"
+                      >
+                          Confirm
+                      </button>
+                  )}
+                  {showEditLab && (
+                      <button
+                          onClick={handleAddLabCourse}
+                          className="bg-black text-white font-medium text-sm py-3 px-6 rounded-lg transition-colors"
+                      >
+                          {`Edit "${courseNameDisplay} Lab"`}
+                      </button>
+                  )}
+              </>
+          ) : (
+            <div className="flex justify-end w-full space-x-3">
               <button
                 onClick={handleAddLabCourse}
-                disabled={getAllFacultyPreferences().length === 0 && facultyName.trim() === ''}
+                disabled={isActionDisabled}
                 className={`px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors ${
-                  (getAllFacultyPreferences().length === 0 && facultyName.trim() === '')
+                  isActionDisabled
                     ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-green-500 hover:bg-green-600'
+                    : 'bg-blue-500 hover:bg-blue-600'
                 }`}
               >
-                Add Lab Course
+                {`Add "${courseNameDisplay} Lab"`}
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={getAllFacultyPreferences().length === 0 && facultyName.trim() === ''}
-                className={`confirm-btn px-6 py-3 ml-4 rounded-lg text-sm font-medium text-white transition-colors ${
-                  (getAllFacultyPreferences().length === 0 && facultyName.trim() === '')
+                disabled={isActionDisabled}
+                className={`confirm-btn px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors ${
+                  isActionDisabled
                     ? 'bg-gray-400 cursor-not-allowed' 
                     : 'bg-black'
                 }`}
@@ -850,7 +884,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                 Confirm
               </button>
             </div>
-            )}
+          )}
         </div>
       </div>
 
@@ -859,7 +893,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
         <LabSlotModal
           isOpen={isLabModalOpen}
           onClose={handleLabModalClose}
-          onForceClose={onClose}
+          onForceClose={onForceClose}
           onSubmit={handleLabSlotConfirmAndProceed}
           courseName={courseNameDisplay}
           theorySlot={slotDisplay || ''}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, type DragEvent, useEffect } from 'react';
-import { AiOutlineMenu, AiOutlineHome, AiOutlineSetting, AiOutlineUser, AiOutlinePlus, AiOutlineShareAlt, AiOutlineUpload, AiOutlineClose, AiOutlineFile, AiOutlineEdit, AiOutlineDelete, AiOutlineSearch, AiOutlineCloud, AiOutlineCalendar, AiOutlineQuestionCircle, AiOutlineBgColors, AiOutlineDownload } from 'react-icons/ai';
+import { AiOutlineMenu, AiOutlineHome, AiOutlineSetting, AiOutlineUser, AiOutlinePlus, AiOutlineShareAlt, AiOutlineUpload, AiOutlineClose, AiOutlineFile, AiOutlineEdit, AiOutlineDelete, AiOutlineSearch, AiOutlineCloud, AiOutlineCalendar, AiOutlineQuestionCircle, AiOutlineBgColors, AiOutlineDownload, AiOutlineInfoCircle, AiOutlineMail } from 'react-icons/ai';
 import { BsSun, BsMoonStars } from 'react-icons/bs';
 import { IoClose } from 'react-icons/io5';
 import { VscDebugRestart } from 'react-icons/vsc';
@@ -111,6 +111,25 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [selectedPalette, setSelectedPalette] = useState<keyof typeof PALETTES>(initialState.selectedPalette);
   const [tempColorIndex, setTempColorIndex] = useState<number>(0);
   const [isPaletteDropdownOpen, setIsPaletteDropdownOpen] = useState(false);
+  const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
+  const helpMenuRef = useRef<HTMLDivElement>(null);
+
+  // Add click outside handler for help menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (helpMenuRef.current && !helpMenuRef.current.contains(event.target as Node)) {
+        setIsHelpMenuOpen(false);
+      }
+    };
+
+    if (isHelpMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isHelpMenuOpen]);
 
   // Save data to localStorage whenever it changes
   useEffect(() => {
@@ -778,17 +797,63 @@ const Dashboard: React.FC<DashboardProps> = ({
             const labCourseName = `${getBaseCourseName(courseBeingEdited.name)} Lab`;
             isLabPresent = courses.some(c => c.name === labCourseName);
         }
+
+        const getSortableSlotKey = (slot: string | undefined): string => {
+          if (!slot) return '4_'; // Should be last
+        
+          // Theory slots (e.g., A1, B2, TAA1)
+          const theoryMatch = slot.match(/^([A-Z]+)([12])$/);
+          if (theoryMatch) {
+            const prefix = theoryMatch[1];
+            const session = theoryMatch[2]; // '1' or '2'
+            return `${session}_${prefix}`;
+          }
+        
+          // Lab slots (e.g., L1, L31)
+          const labMatch = slot.match(/^L(\d+)$/);
+          if (labMatch) {
+            const num = parseInt(labMatch[1]);
+            return `3_${num.toString().padStart(3, '0')}`; // Pad to handle L1 vs L10
+          }
+        
+          // Fallback for any other slot format (like custom slots)
+          return `4_${slot}`;
+        };
+
+        const coursesWithOriginalIndex = courses.map((course, index) => ({
+          ...course,
+          originalIndex: index,
+          baseName: getBaseCourseName(course.name),
+          isLab: course.name.endsWith(' Lab'),
+        }));
+        
+        coursesWithOriginalIndex.sort((a, b) => {
+          const aSortSlot = getSortableSlotKey(a.isLab ? courses.find(c => c.name === a.baseName)?.slots[0] : a.slots[0]);
+          const bSortSlot = getSortableSlotKey(b.isLab ? courses.find(c => c.name === b.baseName)?.slots[0] : b.slots[0]);
+
+          if (a.baseName === b.baseName) {
+            return a.isLab ? 1 : -1;
+          }
+
+          if (aSortSlot < bSortSlot) return -1;
+          if (aSortSlot > bSortSlot) return 1;
+
+          return a.baseName.localeCompare(b.baseName);
+        });
+
+        const sortedCourses = coursesWithOriginalIndex.map(({ originalIndex, baseName, isLab, ...course }) => course);
+
         return (
           <div className="space-y-8">
             {/* Semester Info and Course Cards */}
             <div>
               <div className="space-y-6">
                 {/* Semester Input and Theory Preference in same row */}
-                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 mt-8">
                   {/* Theory Slot Preference */}
                   <div>
                     <label className="block text-base font-semibold text-black mb-2">
-                      Theory Slot Preference
+                      Slot Selection Mode
                     </label>
                     <div className="bg-gray-100 rounded-lg p-1 inline-flex items-center h-12">
                       <button
@@ -854,7 +919,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <div className="relative" ref={paletteDropdownRef}>
                         <button
                           onClick={() => setIsPaletteDropdownOpen(!isPaletteDropdownOpen)}
-                          className="px-4 py-2 rounded-lg flex items-center space-x-2 h-12 bg-gray-50 text-black hover:bg-gray-100 transition-colors"
+                          className="flex items-center space-x-2 h-12 text-black hover:text-gray-600 transition-colors"
                           title="Change color palette"
                         >
                           <AiOutlineBgColors size={20} />
@@ -906,14 +971,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* Course Cards Component */}
+                {/* Course Cards */}
                 <CourseCards 
-                  courses={courses}
-                  onEditCourse={handleEditCourse}
-                  onEditFaculty={handleEditFaculty}
-                  onDeleteCourse={handleDeleteCourse}
+                  courses={sortedCourses}
+                  onEditCourse={(index) => handleEditCourse(coursesWithOriginalIndex[index].originalIndex)}
+                  onEditFaculty={(index) => handleEditFaculty(coursesWithOriginalIndex[index].originalIndex)}
+                  onDeleteCourse={(index) => handleDeleteCourse(coursesWithOriginalIndex[index].originalIndex)}
                   onAddCourse={handleAddCourse}
-                  onAddLab={handleAddLab}
+                  onAddLab={(index) => handleAddLab(coursesWithOriginalIndex[index].originalIndex)}
                   blockedSlots={getAllSelectedSlots()}
                   palette={selectedPalette}
                 />
@@ -922,8 +987,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Timetable Display Area */}
             <div className="flex items-center mb-4 mt-8">
-              <AiOutlineCalendar size={20} className="text-gray-700 mr-2" />
-              <h2 className="text-xl font-semibold text-gray-700">Time Table</h2>
+              <AiOutlineCalendar size={20} className="text-black mr-2" />
+              <h2 className="text-xl font-semibold text-black">Time Table</h2>
             </div>
             <div className="shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-200 rounded-xl overflow-hidden">
               <TimeTable courses={courses} palette={selectedPalette} />
@@ -1033,16 +1098,100 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Floating Help Button */}
+      {/* Floating Help Button with Arc Menu */}
+      <div className="fixed bottom-4 sm:bottom-6 right-4 sm:right-[5rem] z-50">
+        <div className="relative" ref={helpMenuRef}>
+          {/* Arc Menu Items */}
+          {isHelpMenuOpen && (
+            <>
+              {/* How to Use Button - 0 degrees */}
+              <a
+                href="https://aneezhussain.com/how-to-use-f2cs-planner"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute arc-menu-item position-1 group"
+              >
+                <div className="bg-white rounded-full w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:shadow-xl border border-gray-700 hover:bg-gray-50 transition-all">
+                  <AiOutlineInfoCircle className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 group-hover:text-gray-900" />
+                </div>
+                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-full ml-[-12px] bg-black text-white px-3 py-2 rounded text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50">
+                  how to use
+                </div>
+              </a>
+
+              {/* Feedback Button - 45 degrees */}
       <button
-        onClick={() => window.open('https://github.com/yourusername/VIT-FFCS-Planner#readme', '_blank')}
-        className="fixed bottom-4 sm:bottom-6 right-4 sm:right-[5rem] bg-black hover:bg-gray-900 text-white rounded-full w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300"
+                onClick={() => window.location.href = 'mailto:aneezhussain.protomail.com'}
+                className="absolute arc-menu-item position-2 group"
+              >
+                <div className="bg-white rounded-full w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:shadow-xl border border-gray-700 hover:bg-gray-50 transition-all">
+                  <AiOutlineMail className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 group-hover:text-gray-900" />
+                </div>
+                <div className="absolute left-0 top-0 transform -translate-x-full -translate-y-1/4 ml-[-12px] bg-black text-white px-3 py-2 rounded text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50">
+                  mail
+                </div>
+              </button>
+
+              {/* About Creator Button - 90 degrees */}
+              <a
+                href="https://aneezhussain.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute arc-menu-item position-3 group"
+              >
+                <div className="bg-white rounded-full w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:shadow-xl border border-gray-700 hover:bg-gray-50 transition-all">
+                  <AiOutlineUser className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 group-hover:text-gray-900" />
+                </div>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-2 mb-2 bg-black text-white px-3 py-2 rounded text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50">
+                  creator
+                </div>
+              </a>
+            </>
+          )}
+
+          {/* Main Help Button */}
+          <button
+            onClick={() => setIsHelpMenuOpen(!isHelpMenuOpen)}
+            className="bg-black hover:bg-gray-900 text-white rounded-full w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:shadow-xl transition-colors"
       >
         <AiOutlineQuestionCircle className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
+        </div>
+      </div>
+
+      <style>
+        {`
+          .arc-menu-item {
+            opacity: 0;
+            transform: translate(0, 0);
+            transition: all 0.3s ease-out;
+          }
+
+          .position-1 {
+            /* 0 degrees - pure horizontal */
+            transform: translate(-4.5rem, 0);
+            opacity: 1;
+            transition-delay: 0s;
+          }
+
+          .position-2 {
+            /* 45 degrees - equal x and y */
+            transform: translate(-3.2rem, -3.2rem);
+            opacity: 1;
+            transition-delay: 0.1s;
+          }
+
+          .position-3 {
+            /* 90 degrees - pure vertical */
+            transform: translate(0, -4.5rem);
+            opacity: 1;
+            transition-delay: 0.2s;
+          }
+        `}
+      </style>
 
       {/* Footer */}
-      <footer className="bg-white py-3 sm:py-4 mt-auto">
+      <footer className="bg-white py-3 sm:py-4 mt-auto pb-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center">
             <p className="text-sm sm:text-base text-black">Made with ❤️ for Vitians</p>

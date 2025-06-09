@@ -33,6 +33,8 @@ const AppContent: React.FC = () => {
           exportButtonRef={exportButtonRef}
           setIsImportModalOpen={setIsImportModalOpen}
           setIsExportModalOpen={setIsExportModalOpen}
+          isImportModalOpen={isImportModalOpen}
+          isExportModalOpen={isExportModalOpen}
           user={currentUser}
         />
         <Dashboard 

@@ -347,7 +347,19 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
       <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm"></div>
       <div className="bg-white rounded-2xl p-6 w-[90vw] max-w-[1600px] z-10 relative">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900">{editingCourse ? 'Edit Course Slots' : 'Select Course Slots'}</h2>
+          <div className="flex items-center">
+            <h2 className="text-2xl font-semibold text-gray-900">{editingCourse ? 'Edit Course Slots' : 'Select Course Slots'}</h2>
+            <div className="ml-4 flex items-center translate-y-[2px]">
+              <div className="flex items-center">
+                <button className="text-black hover:text-gray-600 transition-colors flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 translate-y-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+                <span className="text-black text-sm ml-1">Choose slots by clicking on Time Table Cells</span>
+              </div>
+            </div>
+          </div>
           <button onClick={onClose} className="text-gray-500 hover:text-red-500 transition-colors">
             <IoClose size={24} />
           </button>
@@ -374,29 +386,30 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
           <div className="border rounded-xl p-4">
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-black mb-2">
                   Course Name
                 </label>
                 <input
                   type="text"
                   value={courseName}
+                  maxLength={34}
                   onChange={(e) => setCourseName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-all"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-black focus:border-black transition-all text-black"
                   placeholder="Enter course name"
                 />
               </div>
 
               <div>
-                <label htmlFor="slot-input-tts" className="block text-sm font-medium text-gray-700 mb-2">
-                  Selected Slots (e.g., A1+F1+TC1)
+                <label htmlFor="slot-input-tts" className="block text-sm font-medium text-black mb-2">
+                  Selected Slots (e.g., A1+TA1+TAA1)
                 </label>
                 <input
                   id="slot-input-tts"
                   type="text"
                   value={slotInputString}
                   onChange={handleSlotInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-0 transition-all"
-                  placeholder="Type slots like A1+F1 or click timetable"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-black focus:border-black transition-all text-black"
+                  placeholder="Type A1+TA1 or select cells"
                 />
               </div>
 
@@ -452,7 +465,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                       className="h-1/2 px-1 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-tr-md focus:outline-none"
                       aria-label="Increase credits"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 15l7-7 7 7" /></svg>
                     </button>
                     <button
                       type="button"
@@ -464,7 +477,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                       className="h-1/2 px-1 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-br-md focus:outline-none"
                       aria-label="Decrease credits"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" /></svg>
                     </button>
                   </div>
                 </div>
@@ -474,14 +487,14 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                 onClick={handleSubmit}
                 disabled={!courseName || selectedSlots.length === 0}
                 className={`
-                  w-full px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors
+                  w-full px-4 py-4 rounded-lg text-base font-medium text-white transition-colors
                   ${courseName && selectedSlots.length > 0
                     ? 'bg-black hover:bg-gray-900'
                     : 'bg-gray-300 cursor-not-allowed'
                   }
                 `}
               >
-                Confirm Selection
+                Confirm
               </button>
             </div>
           </div>

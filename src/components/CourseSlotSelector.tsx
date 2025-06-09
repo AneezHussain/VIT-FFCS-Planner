@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { IoClose } from 'react-icons/io5';
 import { PALETTES } from '../utils/colorUtils';
 
@@ -125,6 +125,7 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
   const [creditInputString, setCreditInputString] = useState('0'); // New state for credit input text
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
   const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
+  const courseNameInputRef = useRef<HTMLInputElement>(null);
 
   // Use the constants for slot patterns
   const morningTheorySlots = morningTheorySlotsConst;
@@ -133,7 +134,8 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      // When this modal is open, ensure the main dashboard doesn't scroll.
+      // Auto focus the course name input when modal opens
+      courseNameInputRef.current?.focus();
     }
     // Cleanup function to restore scroll when the modal is closed/unmounted
     return () => {
@@ -323,10 +325,11 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
               </label>
               <input
                 type="text"
+                ref={courseNameInputRef}
                 value={courseName}
                 maxLength={34}
                 onChange={(e) => setCourseName(e.target.value)}
-                className="w-full px-6 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all text-base break-words"
+                className="w-full px-6 py-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-black focus:border-black transition-all text-base break-words"
                 placeholder="Enter course name"
               />
             </div>
@@ -394,7 +397,7 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
                     className="h-1/2 px-1 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-tr-md focus:outline-none"
                     aria-label="Increase credits"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 15l7-7 7 7" /></svg>
                   </button>
                   <button
                     type="button"
@@ -406,7 +409,7 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
                     className="h-1/2 px-1 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-br-md focus:outline-none"
                     aria-label="Decrease credits"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" /></svg>
                   </button>
                 </div>
               </div>

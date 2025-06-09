@@ -61,7 +61,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
     },
     {
       day: 'WED',
-      slots: ['C1/L13', 'A1/L14', 'F1/L15', { colspan: 3, content: 'Extramural Hour' }, 'C2/L43', 'A2/L44', 'F2/L45', 'TD2/L46', 'TBB2/L47', 'L48']
+      slots: ['C1/L13', 'A1/L14', 'F1/L15', { colspan: 3, content: 'Extramural Hours' }, 'C2/L43', 'A2/L44', 'F2/L45', 'TD2/L46', 'TBB2/L47', 'L48']
     },
     {
       day: 'THU',

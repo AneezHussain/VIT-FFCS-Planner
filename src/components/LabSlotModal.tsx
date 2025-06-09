@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { IoArrowBack, IoClose } from 'react-icons/io5';
 import { AiOutlinePlus, AiOutlineEdit } from 'react-icons/ai';
+import { BsInfoCircle } from 'react-icons/bs';
 import FacultyLabSlotSelectorModal from './FacultyLabSlotSelectorModal';
 import SlotSelector from './SlotSelector';
 
@@ -37,7 +38,21 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
   slotColor,
   initialAssignments
 }) => {
-  const labCourseName = `${courseName} Lab`;
+  const capitalizeCourseName = (name: string): string => {
+    const exceptions = ['and', 'of'];
+    return name
+      .split(' ')
+      .map((word) => {
+        const lowerWord = word.toLowerCase();
+        if (exceptions.includes(lowerWord)) {
+          return lowerWord;
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join(' ');
+  };
+
+  const labCourseName = `${capitalizeCourseName(courseName)} Lab`;
   // State to hold faculty-specific lab slots. Key: facultyName, Value: string[] of lab slots
   const [facultySpecificLabSlots, setFacultySpecificLabSlots] = useState<Map<string, string[]>>(new Map());
 
@@ -241,11 +256,16 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
            </p>
         )}
 
-        <p className="text-xs text-gray-500 mb-5 text-center px-2">
-          Specific lab slots can be assigned per faculty.
-        </p>
+        <div className="flex items-center justify-center gap-1.5 mb-5">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 translate-y-[1px] text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm text-black text-center">
+          First Lab slot blocked; others marked red/green by availability.
+          </p>
+        </div>
 
-        <div className="flex justify-end space-x-3 mt-5 pb-2">
+        <div className="flex justify-end space-x-3 mt-5 pb-1">
           <button
             onClick={() => onSubmit(facultySpecificLabSlots)}
             disabled={isConfirmLabDetailsDisabled}

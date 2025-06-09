@@ -103,7 +103,7 @@ const ExportModal: React.FC<ExportModalProps> = ({
     >
       <div className="bg-white rounded-xl w-72 border border-gray-200 shadow-lg">
         <div className="absolute -top-1 right-4 w-4 h-4 bg-white border-l border-t border-gray-200 transform rotate-45"></div>
-        <div className="p-4 space-y-3">
+        <div className="px-4 py-6 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Export Options</h3>
           <button
             onClick={handleSaveToComputer}
@@ -115,11 +115,16 @@ const ExportModal: React.FC<ExportModalProps> = ({
           
           <button
             onClick={handleDownloadTimeTable}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors duration-200"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 mt-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors duration-200"
           >
             <AiOutlineCalendar className="h-5 w-5" />
             <span>Download Timetable</span>
           </button>
+        </div>
+        <div className="p-4">
+          <p className="text-xs text-gray-500 text-center">
+            Share your timetable with friends or import their CSV to collaborate!
+          </p>
         </div>
       </div>
     </div>
