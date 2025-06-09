@@ -97,7 +97,7 @@ const SlotSelector: React.FC<SlotSelectorProps> = ({
         <div className="p-4">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Select Lab Slots</h2>
+              <h2 className="text-lg font-semibold text-gray-900 break-words">Select Lab Slots</h2>
             </div>
             <button 
               onClick={onClose}

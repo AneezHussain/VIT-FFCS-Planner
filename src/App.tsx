@@ -7,17 +7,18 @@ import Navbar from './components/navbar';
 const AppContent: React.FC = () => {
   const { currentUser, loading, logout } = useAuth();
   
-  // State for Navbar props (example values, adjust as needed for actual app logic)
+  // State for Navbar props
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const importButtonRef = useRef<HTMLButtonElement>(null);
-  const [currentPage, setCurrentPage] = useState('dashboard'); // Example: set current page
-  const [hideNavbar, setHideNavbar] = useState(false); // Example: control navbar visibility
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const exportButtonRef = useRef<HTMLButtonElement>(null);
+  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [hideNavbar, setHideNavbar] = useState(false);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div>Loading...</div> {/* Or a proper spinner component */}
+        <div>Loading...</div>
       </div>
     );
   }
@@ -28,35 +29,32 @@ const AppContent: React.FC = () => {
         <Navbar 
           hideNavbar={hideNavbar} 
           currentPage={currentPage} 
-          importButtonRef={importButtonRef} 
+          importButtonRef={importButtonRef}
+          exportButtonRef={exportButtonRef}
           setIsImportModalOpen={setIsImportModalOpen}
+          setIsExportModalOpen={setIsExportModalOpen}
           user={currentUser}
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
         />
         <Dashboard 
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
+          isImportModalOpen={isImportModalOpen}
+          setIsImportModalOpen={setIsImportModalOpen}
+          isExportModalOpen={isExportModalOpen}
+          setIsExportModalOpen={setIsExportModalOpen}
+          importButtonRef={importButtonRef}
+          exportButtonRef={exportButtonRef}
         /> 
       </>
     );
   }
 
-  // Login component no longer needs onGoogleLogin if it uses useAuth directly
   return <Login />;
 };
 
 function App() {
   return (
     <AuthProvider>
-      {/* 
-        You might want to manage parts of the state like currentPage, 
-        hideNavbar, isImportModalOpen at a higher level if other 
-        components outside of AppContent need to interact with them, 
-        or through a different context.
-      */}
       <AppContent />
     </AuthProvider>
   );

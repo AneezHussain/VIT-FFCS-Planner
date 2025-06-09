@@ -122,7 +122,7 @@ const FacultyLabSlotSelectorModal: React.FC<FacultyLabSlotSelectorModalProps> = 
   return (
     <div ref={modalRef} style={getModalStyle()} className="bg-white rounded-lg shadow-xl border border-gray-200 w-96">
       <div className="flex justify-between items-center p-3 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-800">
+        <h3 className="text-sm font-medium text-gray-800 break-words">
           Select Lab Slots for {facultyName}
         </h3>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600">

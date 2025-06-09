@@ -345,7 +345,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
       <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm"></div>
-      <div className="bg-white rounded-2xl p-6 w-[90vw] z-10 relative">
+      <div className="bg-white rounded-2xl p-6 w-[90vw] max-w-[1600px] z-10 relative">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-900">{editingCourse ? 'Edit Course Slots' : 'Select Course Slots'}</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-red-500 transition-colors">
@@ -355,17 +355,19 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
 
         <div className="grid grid-cols-[4fr,1fr] gap-6">
           {/* Left side - Interactive TimeTable */}
-          <div className="border rounded-xl timetable-container">
-            <TimeTable 
-              courses={coursesToDisplayInTimeTable} // Pass all courses to TimeTable
-              isSelectMode={true}
-              onCellClick={handleCellClick}
-              selectedSlots={selectedSlots} // selectedSlots for the current course being edited/added
-              existingSlots={allExistingSlots} // All slots from other courses
-              getCellInteractionClass={(cellSlots: string) => getCellClickableClass(cellSlots, selectedSlots, allExistingSlots, showSlotPopup && selectedCell === cellSlots)}
-              hideContentForCell={showSlotPopup && selectedCell ? selectedCell : undefined}
-              palette={palette}
-            />
+          <div className="border rounded-xl timetable-container overflow-x-auto">
+            <div className="min-w-[1000px]"> {/* Increased minimum width */}
+              <TimeTable 
+                courses={coursesToDisplayInTimeTable}
+                isSelectMode={true}
+                onCellClick={handleCellClick}
+                selectedSlots={selectedSlots}
+                existingSlots={allExistingSlots}
+                getCellInteractionClass={(cellSlots: string) => getCellClickableClass(cellSlots, selectedSlots, allExistingSlots, showSlotPopup && selectedCell === cellSlots)}
+                hideContentForCell={showSlotPopup && selectedCell ? selectedCell : undefined}
+                palette={palette}
+              />
+            </div>
           </div>
 
           {/* Right side - Course Details */}
@@ -408,8 +410,6 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                     type="text"
                     value={creditInputString}
                     maxLength={1}
-                    onFocus={(e) => {
-                    }}
                     onChange={(e) => {
                       const val = e.target.value;
                       setCreditInputString(val); 
@@ -476,7 +476,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                 className={`
                   w-full px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors
                   ${courseName && selectedSlots.length > 0
-                    ? 'bg-black'
+                    ? 'bg-black hover:bg-gray-900'
                     : 'bg-gray-300 cursor-not-allowed'
                   }
                 `}
@@ -487,9 +487,9 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
           </div>
         </div>
 
-        {/* Slot Selection Popup - Only shown for cells with multiple available slots */}
+        {/* Slot Selection Popup */}
         {showSlotPopup && selectedCell && availableSlotsForCell.length > 1 && (
-          <div // Outermost container for positioning. No visual styles itself.
+          <div
             className="fixed z-20 slot-popup"
             style={{
               left: `${popupPosition.x + 40}px`, 
@@ -503,17 +503,16 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
               onMouseEnter={() => setIsPopupHovered(true)}
               onMouseLeave={() => setIsPopupHovered(false)}
             >
-              {/* Content of the popup */}
               <div className="flex flex-row items-center gap-1">
                 {availableSlotsForCell.map((slot, index) => (
                   <React.Fragment key={slot}>
                     <button
                       onClick={() => handleSlotSelectFromPopup(slot)}
                       className={`
-                        px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-left
+                        px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-left whitespace-nowrap
                         ${selectedSlots.includes(slot)
-                          ? 'bg-blue-100 text-blue-800' // Selected state
-                          : 'hover:bg-gray-100'       // Default hover state
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'hover:bg-gray-100'
                         }
                       `}
                     >
@@ -526,7 +525,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                 ))}
               </div>
 
-              {/* Speech bubble tail - Border part */}
+              {/* Speech bubble tail */}
               <div
                 className="absolute w-0 h-0"
                 style={{
@@ -539,16 +538,15 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                   transition: 'border-top-color 0.15s ease-in-out'
                 }}
               />
-              {/* Speech bubble tail - Fill part (sits on top of the border part) */}
               <div
                 className="absolute w-0 h-0"
                 style={{
-                  bottom: '-14px', // Adjusted for 1px border reveal
+                  bottom: '-14px',
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  borderLeft: '9px solid transparent',  // Adjusted for 1px border reveal
-                  borderRight: '9px solid transparent', // Adjusted for 1px border reveal
-                  borderTop: '14px solid white',      // Adjusted for 1px border reveal
+                  borderLeft: '9px solid transparent',
+                  borderRight: '9px solid transparent',
+                  borderTop: '14px solid white',
                 }}
               />
             </div>

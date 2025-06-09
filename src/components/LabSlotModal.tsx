@@ -128,24 +128,29 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
       }`}>
         {/* New header with Back button on left and X button on right */}
         <div className="flex justify-between items-center mb-3">
-          <div className="w-6 h-6" /> {/* Placeholder to keep the X on the right */}
-          {/* New X Close button */}
+          {!initialAssignments && (
+            <button 
+              onClick={onClose}
+              className="text-gray-600 hover:text-black transition-colors flex items-center"
+              aria-label="Back to faculty preferences"
+            >
+              <IoArrowBack size={24} />
+            </button>
+          )}
+          {!initialAssignments && <div className="flex-1" />} {/* Spacer when back button is shown */}
           <button 
             onClick={onForceClose}
-            className="text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-gray-500 hover:text-gray-700 transition-colors ml-auto"
             aria-label="Close modal"
           >
             <IoClose size={24} />
           </button>
         </div>
 
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2 text-center">Lab Slots for "{labCourseName}"</h2>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2 text-center break-words">Lab Slots for "{labCourseName}"</h2>
         
         <p className="text-center mb-8 text-gray-600 flex items-center justify-center gap-3">
-          Theory slot: <span className={`
-            inline-block px-3 py-1 text-sm font-medium rounded-md
-            ${slotColor}
-          `}>
+          Theory slot: <span className={`inline-block px-3 py-1 text-sm font-medium rounded-md ${slotColor}`}>
             {theorySlot}
           </span>
           <span className="flex items-center space-x-1 bg-gray-100 rounded-lg px-2 py-1">
@@ -170,9 +175,9 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
                       <div className="flex-1">
                         <div className="relative py-3 px-4 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors group">
                           <div className="flex justify-between items-center">
-                            <span>{faculty}</span>
+                            <span className="break-words">{faculty}</span>
                             {assignedSlotsString && (
-                              <div className={`text-xs px-2.5 py-1.5 ml-3 rounded-md font-medium ${
+                              <div className={`text-xs px-2.5 py-1.5 ml-3 rounded-md font-medium break-words ${
                                 index === 0 ? slotColor : 'bg-gray-50 text-gray-700'
                               }`}>
                                 {assignedSlotsString}
@@ -208,9 +213,9 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
                         <div className="flex-1">
                           <div className="relative py-3 px-4 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors group">
                             <div className="flex justify-between items-center">
-                              <span>{faculty}</span>
+                              <span className="break-words">{faculty}</span>
                               {assignedSlotsString && (
-                                <div className="text-xs bg-gray-50 text-gray-700 px-2.5 py-1.5 ml-3 rounded-md font-medium">
+                                <div className="text-xs bg-gray-50 text-gray-700 px-2.5 py-1.5 ml-3 rounded-md font-medium break-words">
                                   {assignedSlotsString}
                                 </div>
                               )}
@@ -231,7 +236,7 @@ const LabSlotModal: React.FC<LabSlotModalProps> = ({
             )}
           </div>
         ) : (
-           <p className="text-gray-600 mb-6 text-center px-2">
+           <p className="text-gray-600 mb-6 text-center px-2 break-words">
              No faculty preferences were set for the theory course.
            </p>
         )}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { AiOutlineUpload, AiOutlineUser, AiOutlineCreditCard, AiOutlineSetting, AiOutlineFileText, AiOutlineLogout, AiOutlineRight, AiOutlineMenu } from 'react-icons/ai';
+import { AiOutlineUpload, AiOutlineUser, AiOutlineCreditCard, AiOutlineSetting, AiOutlineFileText, AiOutlineLogout, AiOutlineRight, AiOutlineMenu, AiOutlineShareAlt } from 'react-icons/ai';
 import { useAuth } from '../contexts/AuthContext';
 import { User } from 'firebase/auth';
 
@@ -7,20 +7,20 @@ interface NavbarProps {
   hideNavbar: boolean;
   currentPage: string;
   importButtonRef: React.RefObject<HTMLButtonElement>;
-  setIsImportModalOpen: (isOpen: boolean) => void;
+  exportButtonRef: React.RefObject<HTMLButtonElement>;
+  setIsImportModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsExportModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   user: User | null;
-  isSidebarOpen: boolean;
-  setIsSidebarOpen: (isOpen: boolean) => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
   hideNavbar,
   currentPage,
   importButtonRef,
+  exportButtonRef,
   setIsImportModalOpen,
-  user,
-  isSidebarOpen,
-  setIsSidebarOpen
+  setIsExportModalOpen,
+  user
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -49,74 +49,76 @@ const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav className={`bg-white fixed w-full z-50 ${hideNavbar ? 'hidden' : ''}`}>
-      <div className="h-20 w-full flex items-center">
-        <div className="w-full px-2 md:px-20 flex items-center justify-between">
-          {/* Left side - Hamburger and Breadcrumbs */}
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center justify-center p-1 rounded-lg bg-gray-50 lg:hidden">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
-              >
-                <AiOutlineMenu className="h-6 w-6 text-gray-600" />
-              </button>
-            </div>
-            <div className="text-base text-gray-600 flex items-center space-x-1">
-              <span className="whitespace-nowrap">FFCS-Planner {'>'}</span>
-              <span className="font-medium text-gray-800 whitespace-nowrap">
-                {currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}
-              </span>
-            </div>
+      <div className="h-16 sm:h-20 w-full flex items-center border-b-2 border-gray-200">
+        <div className="w-full px-3 sm:px-6 md:px-8 lg:px-20 flex items-center justify-between transition-all duration-300">
+          {/* Left side - Logo and Dashboard text */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <img src="/favicon.png" alt="FFCS Logo" className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
+            <span className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800">Dashboard</span>
           </div>
 
           {/* Right side - Import and Profile */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
             <button
               ref={importButtonRef}
-              onClick={() => setIsImportModalOpen(true)}
-              className="p-2 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+              onClick={() => {
+                setIsImportModalOpen(prev => !prev)
+                setIsExportModalOpen(false)
+              }}
+              className="text-gray-600 hover:text-gray-900 transition-colors p-2"
               title="Import data from CSV"
             >
-              <AiOutlineUpload className="h-5 w-5" />
+              <AiOutlineUpload className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+            </button>
+
+            <button
+              ref={exportButtonRef}
+              onClick={() => {
+                setIsExportModalOpen(prev => !prev)
+                setIsImportModalOpen(false)
+              }}
+              className="text-gray-600 hover:text-gray-900 transition-colors p-2"
+              title="Share or export data"
+            >
+              <AiOutlineShareAlt className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
             </button>
 
             {user && (
-            <div className="relative" ref={profileRef}>
+            <div className="relative ml-6 sm:ml-8" ref={profileRef}>
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className={`h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 transition-colors
+                className={`h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 transition-colors
                   ${isProfileOpen ? 'ring-2 ring-offset-2 ring-black' : 'hover:ring-2 hover:ring-offset-2 hover:ring-black'}`}
               >
                 {user.photoURL ? (
-                  <img src={user.photoURL} alt="User Avatar" className="h-10 w-10 rounded-full object-cover" />
+                  <img src={user.photoURL} alt="User Avatar" className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover" />
                 ) : (
-                  <AiOutlineUser className="h-6 w-6" />
+                  <AiOutlineUser className="h-6 w-6 sm:h-7 sm:w-7" />
                 )}
               </button>
 
               {isProfileOpen && (
-                <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl z-20 border border-gray-300 p-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+                <div className="absolute right-0 mt-2 w-[280px] sm:w-96 bg-white rounded-xl shadow-xl z-20 border border-gray-300 p-1" style={{ fontFamily: 'Inter, sans-serif' }}>
                   <div className="bg-white rounded-lg">
-                    <div className="px-6 py-8 border-b border-gray-200">
+                    <div className="px-4 sm:px-6 py-6 sm:py-8 border-b border-gray-200">
                       <div className="flex items-center">
                         {user.photoURL ? (
-                          <img src={user.photoURL} alt="User Avatar" className="h-32 w-32 rounded-full mr-8 shrink-0 object-cover" />
+                          <img src={user.photoURL} alt="User Avatar" className="h-24 w-24 sm:h-36 sm:w-36 rounded-full mr-6 sm:mr-8 shrink-0 object-cover" />
                         ) : (
-                          <div className="h-32 w-32 rounded-full mr-8 shrink-0 bg-gray-200 flex items-center justify-center">
-                            <AiOutlineUser className="h-16 w-16 text-gray-400" />
+                          <div className="h-24 w-24 sm:h-36 sm:w-36 rounded-full mr-6 sm:mr-8 shrink-0 bg-gray-200 flex items-center justify-center">
+                            <AiOutlineUser className="h-12 w-12 sm:h-20 sm:w-20 text-gray-400" />
                           </div>
                         )}
                         <div>
-                            <p className="text-lg font-semibold text-gray-800">{displayName}</p>
-                            <p className="text-xs text-gray-500 break-all">{email}</p>
+                          <p className="text-base sm:text-lg font-semibold text-gray-800">{displayName}</p>
+                          <p className="text-xs text-gray-500 break-all">{email}</p>
                         </div>
                       </div>
                     </div>
                     <ul>
                       <li 
-                        className="flex items-center justify-center px-6 py-3 hover:bg-gray-100 cursor-pointer text-red-600"
-                          onClick={handleLogout}
+                        className="flex items-center justify-center px-4 sm:px-6 py-3 hover:bg-gray-100 cursor-pointer text-red-600"
+                        onClick={handleLogout}
                       >
                         <AiOutlineLogout className="h-5 w-5 mr-3" />
                         <span className="text-sm font-medium">Logout</span>

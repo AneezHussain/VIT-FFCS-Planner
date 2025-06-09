@@ -1,15 +1,15 @@
 import React, { useState, useRef, useCallback, type DragEvent, useEffect } from 'react';
-import { AiOutlineMenu, AiOutlineHome, AiOutlineSetting, AiOutlineUser, AiOutlinePlus, AiOutlineShareAlt, AiOutlineUpload, AiOutlineClose, AiOutlineFile, AiOutlineEdit, AiOutlineDelete, AiOutlineSearch, AiOutlineCloud, AiOutlineCalendar, AiOutlineQuestionCircle, AiOutlineBgColors } from 'react-icons/ai';
+import { AiOutlineMenu, AiOutlineHome, AiOutlineSetting, AiOutlineUser, AiOutlinePlus, AiOutlineShareAlt, AiOutlineUpload, AiOutlineClose, AiOutlineFile, AiOutlineEdit, AiOutlineDelete, AiOutlineSearch, AiOutlineCloud, AiOutlineCalendar, AiOutlineQuestionCircle, AiOutlineBgColors, AiOutlineDownload } from 'react-icons/ai';
 import { BsSun, BsMoonStars } from 'react-icons/bs';
 import { IoClose } from 'react-icons/io5';
 import { VscDebugRestart } from 'react-icons/vsc';
+import html2canvas from 'html2canvas';
 import TimeTable from './TimeTable';
 import CourseSlotSelector from './CourseSlotSelector';
 import TimeTableModal from './TimeTableModal';
 import FacultyPreferenceModal from './FacultyPreferenceModal';
 import ExportModal from './ExportModal';
-import FacultyList from './FacultyList';
-import Sidebar from './Sidebar';
+import ImportPopover from './ImportPopover';
 import CourseCards from './CourseCards';
 import TimeTableSlotSelector from './TimeTableSlotSelector';
 import { PALETTES, getNextColorIndex } from '../utils/colorUtils';
@@ -17,20 +17,24 @@ import { PALETTES, getNextColorIndex } from '../utils/colorUtils';
 // Define slot conflicts centrally here or import from a shared utility
 const slotConflictPairs = [
   // Monday conflicts
-  ['A1', 'L1'], ['F1', 'L2'], ['D1', 'L3'], ['TB1', 'L4'], ['TG1', 'L5'], ['L6', 'B1'],
-  ['A2', 'L31'], ['F2', 'L32'], ['D2', 'L33'], ['TB2', 'L34'], ['TG2', 'L35'], ['L36', 'B2'],
+  ['A1', 'L1'], ['F1', 'L2'], ['D1', 'L3'], ['TB1', 'L4'], ['TG1', 'L5'],
+  ['A2', 'L31'], ['F2', 'L32'], ['D2', 'L33'], ['TB2', 'L34'], ['TG2', 'L35'],
+
   // Tuesday conflicts
-  ['B1', 'L7'], ['G1', 'L8'], ['E1', 'L9'], ['TC1', 'L10'], ['TAA1', 'L11'], ['L12', 'C1'],
-  ['B2', 'L37'], ['G2', 'L38'], ['E2', 'L39'], ['TC2', 'L40'], ['TAA2', 'L41'], ['L42', 'C2'],
+  ['B1', 'L7'], ['G1', 'L8'], ['E1', 'L9'], ['TC1', 'L10'], ['TAA1', 'L11'],
+  ['B2', 'L37'], ['G2', 'L38'], ['E2', 'L39'], ['TC2', 'L40'], ['TAA2', 'L41'],
+
   // Wednesday conflicts
-  ['C1', 'L13'], ['A1', 'L14'], ['F1', 'L15'], ['D1', 'L16'], ['TB1', 'L17'], ['L18', 'G1'],
-  ['C2', 'L43'], ['A2', 'L44'], ['F2', 'L45'], ['D2', 'L46'], ['TB2', 'L47'], ['L48', 'G2'],
+  ['C1', 'L13'], ['A1', 'L14'], ['F1', 'L15'], ['D1', 'L16'], ['TB1', 'L17'],
+  ['C2', 'L43'], ['A2', 'L44'], ['F2', 'L45'], ['D2', 'L46'], ['TB2', 'L47'],
+
   // Thursday conflicts
-  ['D1', 'L19'], ['B1', 'L20'], ['G1', 'L21'], ['E1', 'L22'], ['TC1', 'L23'], ['L24', 'A1'],
-  ['D2', 'L49'], ['B2', 'L50'], ['G2', 'L51'], ['E2', 'L52'], ['TC2', 'L53'], ['L54', 'A2'],
+  ['D1', 'L19'], ['B1', 'L20'], ['G1', 'L21'], ['E1', 'L22'], ['TC1', 'L23'],
+  ['D2', 'L49'], ['B2', 'L50'], ['G2', 'L51'], ['E2', 'L52'], ['TC2', 'L53'],
+
   // Friday conflicts
-  ['E1', 'L25'], ['C1', 'L26'], ['TA1', 'L27'], ['TF1', 'L28'], ['TD1', 'L29'], ['L30', 'F1'],
-  ['E2', 'L55'], ['C2', 'L56'], ['TA2', 'L57'], ['TF2', 'L58'], ['TDD2', 'L59'], ['L60', 'F2']
+  ['E1', 'L25'], ['C1', 'L26'], ['TA1', 'L27'], ['TF1', 'L28'], ['TD1', 'L29'],
+  ['E2', 'L55'], ['C2', 'L56'], ['TA2', 'L57'], ['TF2', 'L58'], ['TDD2', 'L59']
 ];
 
 interface Course {
@@ -44,23 +48,57 @@ interface Course {
 }
 
 interface DashboardProps {
-  isSidebarOpen: boolean;
-  setIsSidebarOpen: (isOpen: boolean) => void;
   currentPage: string;
   setCurrentPage: (page: string) => void;
+  isImportModalOpen: boolean;
+  setIsImportModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isExportModalOpen: boolean;
+  setIsExportModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  importButtonRef: React.RefObject<HTMLButtonElement>;
+  exportButtonRef: React.RefObject<HTMLButtonElement>;
 }
 
+// Define a type for the stored data
+interface StoredData {
+  courses: Course[];
+  preferredSlot: 'standard' | 'custom';
+  selectedPalette: keyof typeof PALETTES;
+}
+
+const STORAGE_KEY = 'ffcs_planner_data';
+
 const Dashboard: React.FC<DashboardProps> = ({
-  isSidebarOpen,
-  setIsSidebarOpen,
   currentPage,
-  setCurrentPage
+  setCurrentPage,
+  isImportModalOpen,
+  setIsImportModalOpen,
+  isExportModalOpen,
+  setIsExportModalOpen,
+  importButtonRef,
+  exportButtonRef
 }) => {
+  // Load initial state from localStorage
+  const loadInitialState = (): StoredData => {
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        return JSON.parse(savedData);
+      }
+    } catch (error) {
+      console.error('Error loading saved data:', error);
+    }
+    return {
+      courses: [],
+      preferredSlot: 'standard',
+      selectedPalette: 'default'
+    };
+  };
+
+  const initialState = loadInitialState();
+
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<Course[]>(initialState.courses);
   const [isTimeTableModalOpen, setTimeTableModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [tempCourseData, setTempCourseData] = useState<{ courseName: string; selectedSlots: string[]; credits: number; facultyPreferences?: string[]; includeLabCourse?: boolean; facultyLabAssignments?: Map<string, string[]> } | null>(null);
@@ -69,14 +107,47 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isTimeTableSlotModalOpen, setIsTimeTableSlotModalOpen] = useState(false);
   const prevScrollPos = useRef(0);
   const [facultySearchQuery, setFacultySearchQuery] = useState('');
-  const [preferredSlot, setPreferredSlot] = useState<'standard' | 'custom'>('standard');
-  const [selectedPalette, setSelectedPalette] = useState<keyof typeof PALETTES>('default');
+  const [preferredSlot, setPreferredSlot] = useState<'standard' | 'custom'>(initialState.preferredSlot);
+  const [selectedPalette, setSelectedPalette] = useState<keyof typeof PALETTES>(initialState.selectedPalette);
   const [tempColorIndex, setTempColorIndex] = useState<number>(0);
   const [isPaletteDropdownOpen, setIsPaletteDropdownOpen] = useState(false);
 
-  // Refs for the import, export, and Google Drive buttons
-  const exportButtonRef = useRef<HTMLButtonElement>(null);
-  const importButtonRef = useRef<HTMLButtonElement>(null);
+  // Save data to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      const dataToSave: StoredData = {
+        courses,
+        preferredSlot,
+        selectedPalette
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    } catch (error) {
+      console.error('Error saving data:', error);
+    }
+  }, [courses, preferredSlot, selectedPalette]);
+
+  // Add a function to clear saved data
+  const clearSavedData = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      setCourses([]);
+      setPreferredSlot('standard');
+      setSelectedPalette('default');
+    } catch (error) {
+      console.error('Error clearing saved data:', error);
+    }
+  };
+
+  // Modify handleResetTable to also clear localStorage
+  const handleResetTable = () => {
+    if (courses.length > 0) {
+      if (window.confirm('Are you sure you want to reset all courses? This action cannot be undone.')) {
+        clearSavedData();
+      }
+    }
+  };
+
+  // Refs for the palette dropdown
   const paletteDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -228,32 +299,36 @@ const Dashboard: React.FC<DashboardProps> = ({
       : undefined;
 
     if (editingCourseIndex !== null) {
+      const editingCourse = updatedCourses[editingCourseIndex];
+      const oldCourseName = editingCourse.name;
+      const isEditingTheory = !oldCourseName.endsWith(' Lab');
+      
+      // Update the current course being edited
       updatedCourses[editingCourseIndex] = { 
-        ...updatedCourses[editingCourseIndex],
+        ...editingCourse,
         name: data.courseName, 
         slots: data.selectedSlots, 
         credits: data.credits, 
-        colorIndex: updatedCourses[editingCourseIndex].colorIndex,
+        colorIndex: editingCourse.colorIndex,
         facultyPreferences: theoryFacultyPrefs,
-        facultyLabAssignments: facultyLabAssignmentsArray || updatedCourses[editingCourseIndex].facultyLabAssignments
+        facultyLabAssignments: facultyLabAssignmentsArray || editingCourse.facultyLabAssignments
       };
       
-      if (data.includeLabCourse) {
-        const labCourse: Course = {
-          name: `${data.courseName} Lab`,
-          slots: data.selectedSlots, 
-          credits: 1,
-          colorIndex: updatedCourses[editingCourseIndex].colorIndex,
-          facultyPreferences: theoryFacultyPrefs, 
-          facultyLabAssignments: facultyLabAssignmentsArray 
-        };
-        const existingLabIndex = updatedCourses.findIndex(c => c.name === labCourse.name);
-        if (existingLabIndex !== -1) {
-          updatedCourses[existingLabIndex] = { ...updatedCourses[existingLabIndex], ...labCourse };
-        } else {
-          updatedCourses.push(labCourse);
+      // If editing a theory course, update its lab course if it exists
+      if (isEditingTheory) {
+        const oldLabName = `${oldCourseName} Lab`;
+        const newLabName = `${data.courseName} Lab`;
+        const labIndex = updatedCourses.findIndex(c => c.name === oldLabName);
+        
+        if (labIndex !== -1) {
+          updatedCourses[labIndex] = {
+            ...updatedCourses[labIndex],
+            name: newLabName,
+            colorIndex: editingCourse.colorIndex
+          };
         }
       }
+      
       setEditingCourseIndex(null);
     } else {
       const newColorIndex = getNextColorIndex(courses);
@@ -455,15 +530,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     setTimeTableModalOpen(false);
   };
 
-  // Handle reset table function
-  const handleResetTable = () => {
-    if (courses.length > 0) {
-      if (window.confirm('Are you sure you want to reset all courses? This action cannot be undone.')) {
-        setCourses([]);
-      }
-    }
-  };
-
   // Handle TimeTableSlot submission
   const handleTimeTableSlotSubmit = (data: { 
     courseName: string; 
@@ -627,8 +693,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   // Add exportDataToCSV function
-  const exportDataToCSV = (userName?: string, message?: string): string => {
-    const exportCsvHeaders = ['courseName', 'slots', 'credits', 'colorIndex', 'facultyPreferences', 'preferredSlot', 'facultyLabAssignments'];
+  const exportDataToCSV = (userName?: string, message?: string): void => {
+    const exportCsvHeaders = ['courseName', 'slots', 'credits', 'colorIndex', 'facultyPreferences', 'preferredSlot', 'creationMode', 'facultyLabAssignments'];
     const csvData = courses.map(course => ({
       courseName: course.name,
       slots: course.slots.join('|'),
@@ -636,6 +702,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       colorIndex: course.colorIndex,
       facultyPreferences: course.facultyPreferences?.join('|') || '',
       preferredSlot: preferredSlot,
+      creationMode: course.creationMode || 'standard',
       facultyLabAssignments: course.facultyLabAssignments
         ?.map(assignment => `${assignment.facultyName}:${assignment.slots.join('-')}`)
         .join(';') || ''
@@ -648,7 +715,58 @@ const Dashboard: React.FC<DashboardProps> = ({
       )
     ].join('\n');
 
-    return csvContent;
+    // Create a Blob with the CSV content
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    // Create a link element to trigger the download
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `ffcs-timetable${message ? '-' + message : ''}.csv`);
+    document.body.appendChild(link);
+    
+    // Trigger the download
+    link.click();
+    
+    // Clean up
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Add the downloadTimeTable function after the exportDataToCSV function
+  const downloadTimeTable = () => {
+    const timeTableElement = document.querySelector('.timetable-container') as HTMLDivElement;
+    if (!timeTableElement) return;
+
+    // Create a clean copy of the timetable for export
+    const exportElement = timeTableElement.cloneNode(true) as HTMLDivElement;
+    document.body.appendChild(exportElement);
+    exportElement.style.position = 'absolute';
+    exportElement.style.left = '-9999px';
+    exportElement.style.top = '-9999px';
+
+    html2canvas(exportElement, {
+      scale: 2, // Increase quality
+      backgroundColor: '#ffffff',
+      removeContainer: true,
+      logging: false,
+      onclone: (doc) => {
+        // Additional cleanup for the cloned element
+        const lunchCell = doc.querySelector('td[rowspan="7"]');
+        if (lunchCell) {
+          (lunchCell as HTMLElement).style.borderTop = 'none';
+          (lunchCell as HTMLElement).style.borderBottom = 'none';
+        }
+      }
+    }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = 'timetable.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(exportElement);
+    });
   };
 
   const renderContent = () => {
@@ -666,10 +784,10 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div>
               <div className="space-y-6">
                 {/* Semester Input and Theory Preference in same row */}
-                <div className="flex items-start gap-6">
+                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
                   {/* Theory Slot Preference */}
                   <div>
-                    <label className="block text-base font-semibold text-gray-700 mb-2">
+                    <label className="block text-base font-semibold text-black mb-2">
                       Theory Slot Preference
                     </label>
                     <div className="bg-gray-100 rounded-lg p-1 inline-flex items-center h-12">
@@ -708,15 +826,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                    
                   {/* Total Credits Counter */}
-                  <div className="mt-8">
-                    <div className="flex items-center gap-6">
+                  <div className="w-full sm:w-auto mt-2 sm:mt-8">
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-6">
                       <div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center h-12">
                         <span className="text-2xl font-bold text-gray-800">
                           {courses.reduce((total, course) => total + course.credits, 0)}
                         </span>
                         <span className="ml-2 text-sm text-gray-600">credits</span>
                       </div>
-                      
+
                       {/* Reset Button */}
                       <button
                         onClick={handleResetTable}
@@ -736,7 +854,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <div className="relative" ref={paletteDropdownRef}>
                         <button
                           onClick={() => setIsPaletteDropdownOpen(!isPaletteDropdownOpen)}
-                          className="px-4 py-2 rounded-lg flex items-center space-x-2 h-12 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
+                          className="px-4 py-2 rounded-lg flex items-center space-x-2 h-12 bg-gray-50 text-black hover:bg-gray-100 transition-colors"
                           title="Change color palette"
                         >
                           <AiOutlineBgColors size={20} />
@@ -760,7 +878,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                                       setIsPaletteDropdownOpen(false);
                                     }}
                                     className={`w-full text-left p-2 rounded-lg transition-colors flex items-center justify-between ${
-                                      selectedPalette === key ? 'bg-gray-200 text-black' : 'hover:bg-gray-100 border border-transparent'
+                                      selectedPalette === key 
+                                        ? 'border-2 border-black text-black' 
+                                        : 'hover:bg-gray-100 border border-transparent'
                                     }`}
                                   >
                                     <span className={`font-medium text-sm ${selectedPalette === key ? 'text-black' : 'text-gray-700'}`}>
@@ -856,10 +976,17 @@ const Dashboard: React.FC<DashboardProps> = ({
             {isFacultyModalOpen && tempCourseData && (
               <FacultyPreferenceModal
                 isOpen={isFacultyModalOpen}
-                onClose={() => {
-                  setIsFacultyModalOpen(false);
-                  setTempCourseData(null);
-                  setEditingCourseIndex(null);
+                onClose={(currentFacultyPreferences, currentLabAssignments) => {
+                  // If coming from back button (no preferences passed), reopen course modal
+                  if (!currentFacultyPreferences) {
+                    setIsFacultyModalOpen(false);
+                    setIsCourseModalOpen(true);
+                  } else {
+                    // Normal close (confirm or force close)
+                    setIsFacultyModalOpen(false);
+                    setTempCourseData(null);
+                    setEditingCourseIndex(null);
+                  }
                 }}
                 onForceClose={() => {
                   setIsFacultyModalOpen(false);
@@ -882,8 +1009,6 @@ const Dashboard: React.FC<DashboardProps> = ({
             )}
           </div>
         );
-      case 'faculty-list':
-        return <FacultyList courses={courses} />;
       default:
         return null;
     }
@@ -901,26 +1026,26 @@ const Dashboard: React.FC<DashboardProps> = ({
         id="csv-file-input"
       />
       
-      {/* Sidebar */}
-      <Sidebar
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        isSidebarOpen={isSidebarOpen}
-        setIsSidebarOpen={setIsSidebarOpen}
-      />
-
       {/* Main Content - Fixed width and centered */}
-      <div className={`flex-grow pt-24 mx-auto max-w-screen-2xl transition-all duration-300 ease-in-out pl-8`}>
+      <div className={`flex-grow pt-24 mx-auto w-full max-w-screen-2xl transition-all duration-300 ease-in-out px-4 sm:px-6 md:px-8 lg:px-20`}>
         <div className="w-full mx-auto py-4">
           {renderContent()}
         </div>
       </div>
 
+      {/* Floating Help Button */}
+      <button
+        onClick={() => window.open('https://github.com/yourusername/VIT-FFCS-Planner#readme', '_blank')}
+        className="fixed bottom-4 sm:bottom-6 right-4 sm:right-[5rem] bg-black hover:bg-gray-900 text-white rounded-full w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300"
+      >
+        <AiOutlineQuestionCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+      </button>
+
       {/* Footer */}
-      <footer className="bg-white py-4 mt-auto">
+      <footer className="bg-white py-3 sm:py-4 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center">
-            <p className="text-gray-600">Made with ❤️ for Vitians</p>
+            <p className="text-sm sm:text-base text-black">Made with ❤️ for Vitians</p>
           </div>
         </div>
       </footer>
@@ -933,6 +1058,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           exportDataToCSV={exportDataToCSV}
           defaultUserName="Mohammed Aneez"
           triggerRef={exportButtonRef}
+          downloadTimeTable={downloadTimeTable}
         />
       )}
 
@@ -948,134 +1074,6 @@ const Dashboard: React.FC<DashboardProps> = ({
           isDragging={isDragging}
         />
       )}
-    </div>
-  );
-};
-
-// Import Popover Component
-interface ImportPopoverProps {
-  isOpen: boolean;
-  onClose: () => void;
-  triggerRef: React.RefObject<HTMLButtonElement>;
-  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
-  isDragging: boolean;
-}
-
-const ImportPopover: React.FC<ImportPopoverProps> = ({
-  isOpen,
-  onClose,
-  triggerRef,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  isDragging
-}) => {
-  const modalRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 0, right: 0 });
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.body.style.overflow = 'auto';
-    };
-  }, [isOpen]);
-
-  // Calculate position based on trigger button location
-  useEffect(() => {
-    if (isOpen && triggerRef?.current && modalRef.current) {
-      const triggerRect = triggerRef.current.getBoundingClientRect();
-      
-      // Position below and to the right of the trigger button
-      setPosition({
-        top: triggerRect.bottom + window.scrollY + 10, // 10px gap
-        right: window.innerWidth - triggerRect.right - window.scrollX
-      });
-    }
-  }, [isOpen, triggerRef]);
-
-  // Close when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        modalRef.current && 
-        !modalRef.current.contains(event.target as Node) && 
-        triggerRef?.current !== event.target && 
-        !triggerRef?.current?.contains(event.target as Node)
-      ) {
-        // onClose(); // Removed to prevent closing on outside click
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose, triggerRef]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div 
-      ref={modalRef}
-      className="fixed z-50 shadow-xl rounded-xl"
-      style={{
-        top: `${position.top}px`,
-        right: `${position.right}px`,
-      }}
-    >
-      <div className="bg-white rounded-xl w-80 overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b border-gray-100">
-          <h3 className="text-lg font-medium text-gray-900">
-            Import FFCS Data
-          </h3>
-          <button 
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            <AiOutlineClose size={20} />
-          </button>
-        </div>
-        
-        <div className="p-4">
-          <div 
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-all mb-3
-              ${isDragging 
-                ? 'border-blue-500 bg-blue-50' 
-                : 'border-gray-300 bg-gray-50 hover:border-blue-400'
-              }`}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
-          >
-            <div className="flex flex-col items-center">
-              <AiOutlineFile className={`text-3xl mb-2 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
-              <p className="text-sm text-gray-600 mb-2">
-                Drag & drop your CSV file here
-              </p>
-              <p className="text-xs text-gray-500 mb-3">
-                or
-              </p>
-              <label 
-                htmlFor="csv-file-input"
-                className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-              >
-                Browse Files
-              </label>
-            </div>
-          </div>
-          
-          <p className="text-xs text-gray-500 text-center">
-            Only CSV files that were previously exported from this application are supported.
-          </p>
-        </div>
-      </div>
     </div>
   );
 };

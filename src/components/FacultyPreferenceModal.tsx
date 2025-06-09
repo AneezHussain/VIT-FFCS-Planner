@@ -495,10 +495,10 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
       } z-10 relative transition-all duration-300`}>
         {/* New header with Back button on left and X button on right */}
         <div className="flex justify-between items-center mb-3">
-          {/* Back button - existing functionality */}
+          {/* Back button - explicitly pass undefined to trigger course modal reopening */}
           {showBackButton ? (
             <button 
-              onClick={() => onClose(getAllFacultyPreferences(), confirmedLabAssignments)}
+              onClick={() => onClose(undefined, undefined)}
               className="text-gray-600 hover:text-black transition-colors flex items-center"
               aria-label="Back"
             >
@@ -517,13 +517,10 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
           </button>
         </div>
 
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2 text-center">Faculty Preference for "{courseNameDisplay}"</h2>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2 text-center break-words">{`Faculty Preference for "${courseNameDisplay}"`}</h2>
         
         <p className="text-center mb-8 text-gray-600 flex items-center justify-center gap-3">
-          Selected slot: <span className={`
-            inline-block px-3 py-1 text-sm font-medium rounded-md
-            ${PALETTES[palette].colors[colorIndex]}
-          `}>
+          Selected slot: <span className={`inline-block px-3 py-1 text-sm font-medium rounded-md ${PALETTES[palette].colors[colorIndex]}`}>
             {slotDisplay}
           </span>
           <span className="flex items-center space-x-1 bg-gray-100 rounded-lg px-2 py-1">
@@ -568,6 +565,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                                   ref={editInputRef}
                                   type="text"
                                   value={editingName}
+                                  maxLength={20}
                                   onChange={(e) => setEditingName(e.target.value)}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -586,7 +584,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                                 />
                               ) : (
                                 <div 
-                                  className="relative py-3 px-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors group"
+                                  className="relative py-3 px-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors group break-words"
                                   onClick={() => startEditing(index, faculty, LEFT_COLUMN)}
                                 >
                                   {faculty}
@@ -625,6 +623,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                       ref={inputRef}
                       type="text"
                       value={facultyName}
+                      maxLength={20}
                       onChange={(e) => setFacultyName(e.target.value)}
                       onFocus={() => setIsInputFocused(true)}
                       onBlur={() => setIsInputFocused(false)}
@@ -699,6 +698,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                                     ref={editInputRef}
                                     type="text"
                                     value={editingName}
+                                    maxLength={20}
                                     onChange={(e) => setEditingName(e.target.value)}
                                     onKeyDown={(e) => {
                                       if (e.key === 'Enter') {
@@ -717,7 +717,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                                   />
                                 ) : (
                                   <div 
-                                    className="relative py-3 px-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors group"
+                                    className="relative py-3 px-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors group break-words"
                                     onClick={() => startEditing(index, faculty, RIGHT_COLUMN)}
                                   >
                                     {faculty}
@@ -756,6 +756,7 @@ const FacultyPreferenceModal: React.FC<FacultyPreferenceModalProps> = ({
                         ref={inputRef}
                         type="text"
                         value={facultyName}
+                        maxLength={20}
                         onChange={(e) => setFacultyName(e.target.value)}
                         onFocus={() => setIsInputFocused(true)}
                         onBlur={() => setIsInputFocused(false)}

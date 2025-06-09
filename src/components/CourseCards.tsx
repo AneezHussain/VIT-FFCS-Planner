@@ -38,6 +38,18 @@ const CourseCards: React.FC<CourseCardsProps> = ({
   // Ref for expanded card to check for clicks outside
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // Helper function to capitalize course name
+  const capitalizeCourseName = (name: string) => {
+    const exceptions = ['and', 'of'];
+    return name.split(' ').map((word, index) => {
+      const lowerWord = word.toLowerCase();
+      if (exceptions.includes(lowerWord)) {
+        return lowerWord;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }).join(' ');
+  };
+
   // Handle clicks outside the expanded card
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -71,7 +83,7 @@ const CourseCards: React.FC<CourseCardsProps> = ({
       </div>
 
       {/* Course Cards Grid */}
-      <div className="grid grid-cols-4 gap-4 items-start w-[calc(4*18rem+3*1rem)]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full lg:w-[calc(4*20rem+3*1rem)] justify-center">
         {/* Course Cards */}
         {courses.map((course, index) => {
           const baseName = getBaseCourseName(course.name);
@@ -80,7 +92,6 @@ const CourseCards: React.FC<CourseCardsProps> = ({
 
           const isLabCourse = course.name.endsWith(' Lab');
           const hasFacultyPreferences = course.facultyPreferences && course.facultyPreferences.length > 0;
-          // A course is considered a "skipped faculty" course if it's not a lab and has no faculty preferences.
           const isSkippedFacultyCourse = !isLabCourse && !hasFacultyPreferences && course.creationMode !== 'custom';
           const isCustomSlotCourse = course.creationMode === 'custom';
           
@@ -88,12 +99,12 @@ const CourseCards: React.FC<CourseCardsProps> = ({
             <div 
               key={index}
               className={`
-                bg-white border border-gray-200 rounded-lg p-4 pb-6 hover:shadow-md transition-all relative group flex flex-col
-                ${expandedCard === index ? 'w-72 min-h-[260px] shadow-lg' : 'w-72 h-[210px]'}
+                bg-white border border-gray-300 rounded-lg p-4 pb-5 hover:shadow-md transition-all relative group flex flex-col
+                w-full lg:w-80 ${expandedCard === index ? 'min-h-[280px] shadow-lg' : 'h-[230px]'}
                 before:content-[''] before:absolute before:-top-[6px] before:-right-[6px] before:w-[28px] before:h-[28px] before:bg-white before:rounded-full before:z-[5]
               `}
               style={{
-                transition: 'width 0.3s ease-in-out, height 0.3s ease-in-out, min-height 0.3s ease-in-out',
+                transition: 'height 0.3s ease-in-out, min-height 0.3s ease-in-out',
                 zIndex: expandedCard === index ? 10 : 1,
                 transform: expandedCard === index ? 'scale(1.02)' : 'scale(1)'
               }}
@@ -126,7 +137,6 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                         <span>Edit Course</span>
                       </button>
                     ) : isSkippedFacultyCourse ? (
-                      // Options for courses where faculty was skipped
                       <>
                         <button 
                           className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -151,16 +161,14 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                         </button>
                       </>
                     ) : isLabCourse ? (
-                      // Settings for Lab courses
                       <button 
                         className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => onEditFaculty(index)} // onEditFaculty is used for lab slot editing
+                        onClick={() => onEditFaculty(index)}
                       >
                         <AiOutlineEdit className="mr-2 text-gray-500" size={18} />
                         <span>Edit Lab Slots</span>
                       </button>
                     ) : (
-                      // Settings for regular Theory courses (with faculty preferences)
                       <>
                         <button 
                           className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -187,7 +195,7 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                         )}
                       </>
                     )}
-                    {/* Delete is always available */} 
+                    {/* Delete is always available */}
                     {(isSkippedFacultyCourse || isLabCourse || hasFacultyPreferences || isCustomSlotCourse) && <div className="w-full h-px bg-gray-200 my-1"></div>}
                     <button 
                       className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -200,17 +208,17 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                 </div>
               </div>
 
-              <div className="flex justify-between items-start mt-3">
-                <h3 className="font-medium text-gray-900">{course.name}</h3>
+              <div className="flex justify-between items-start mt-2">
+                <h3 className="font-medium text-gray-900 break-words max-w-[70%] overflow-hidden text-ellipsis" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{capitalizeCourseName(course.name)}</h3>
                 <div className="flex items-center space-x-1 bg-gray-100 rounded-lg px-2 py-1">
                   <span className="text-xs text-gray-500">Credits:</span>
                   <span className="text-sm font-medium text-gray-900">{course.credits}</span>
                 </div>
               </div>
-              
+
               {/* Faculty Preferences Display or Custom Message */}
               {expandedCard !== index && (
-                <div className="mt-2 mb-2 pb-10">
+                <div className="mt-3 mb-2 pb-10">
                   {isCustomSlotCourse ? (
                     <div className="text-sm text-gray-500 italic">
                       Custom slots don't have faculty preference.
@@ -237,11 +245,11 @@ const CourseCards: React.FC<CourseCardsProps> = ({
 
                         return (
                           <React.Fragment key={facultyIndex}>
-                            <div className="flex items-center">
+                            <div className={`flex items-center ${!isLabCourse && facultyIndex > 0 ? 'mt-1' : ''}`}>
                               <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
                                 {facultyIndex + 1}
                               </div>
-                              <div className="text-sm font-medium text-gray-900 whitespace-nowrap">{faculty}</div>
+                              <div className="font-medium text-gray-700 break-words" style={{ fontSize: '14.3px' }}>{faculty}</div>
                               {facultyIndex === 2 && course.facultyPreferences && course.facultyPreferences.length > 3 && (
                                 <button 
                                   className="text-gray-500 hover:text-gray-700 text-xs font-medium ml-2 flex items-center whitespace-nowrap"
@@ -270,19 +278,18 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                       })}
                     </div>
                   ) : (
-                    // Not custom, but no faculty preferences (e.g. a Lab course that hasn't had faculty assigned specifically for it yet)
                     <div className="text-sm text-gray-500 italic">
                       No faculties have been added.
                     </div>
                   )}
                 </div>
               )}
-              
+
               {/* Slot at the bottom for collapsed view - always fixed at bottom */}
               {expandedCard !== index && (
-                <div className="absolute bottom-4 left-4 right-4">
+                <div className="absolute bottom-3 left-4 right-4 mt-5">
                   <span className={`
-                    px-3 py-2 text-xs font-medium rounded-md inline-block w-full text-center
+                    px-3 py-2 text-[13px] font-semibold rounded-md inline-block w-full text-center
                     ${PALETTES[palette].colors[course.colorIndex]}
                   `}>
                     {(() => {
@@ -299,69 +306,69 @@ const CourseCards: React.FC<CourseCardsProps> = ({
                   </span>
                 </div>
               )}
-              
+
               {/* Expanded view for all faculty preferences */}
               {expandedCard === index && (
                 <div className="mt-2 overflow-y-auto pr-2" style={{ maxHeight: '180px' }}>
                   <div className="mt-2 py-2">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">All Preferred Faculty:</h4>
-                      {isCustomSlotCourse ? (
-                        <div className="text-sm text-gray-500 italic mb-3">
-                          Custom slots don't have faculty preference.
-                        </div>
-                      ) : isSkippedFacultyCourse ? (
-                        <div className="text-sm text-gray-500 italic mb-3">
-                          Faculty preference not added.
-                        </div>
-                      ) : hasFacultyPreferences ? (
-                        <div className="grid grid-cols-[max-content_auto] gap-x-2 gap-y-2">
-                          {course.facultyPreferences!.map((faculty, facultyIndex) => {
-                            let labSlotsForFaculty: string | null = null;
-                            if (isLabCourse && course.facultyLabAssignments) {
-                              const assignment = course.facultyLabAssignments.find(a => a.facultyName === faculty);
-                              if (assignment && assignment.slots.length > 0) {
-                                labSlotsForFaculty = assignment.slots.join('+');
-                              }
-                            }
-                            
-                            let slotColorClass = '';
-                            if (facultyIndex > 0 && labSlotsForFaculty) {
-                              slotColorClass = checkSlotsBlocked(labSlotsForFaculty, blockedSlots) ? 'text-red-600' : 'text-green-600';
-                            }
-
-                            return (
-                              <React.Fragment key={facultyIndex}>
-                                <div className="flex items-center">
-                                  <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
-                                    {facultyIndex + 1}
-                                  </div>
-                                  <div className="text-sm font-medium text-gray-900 whitespace-nowrap">{faculty}</div>
-                                </div>
-                                <div>
-                                  {labSlotsForFaculty && (
-                                    <div className={`text-right text-xs font-semibold ${slotColorClass}`}>
-                                      {labSlotsForFaculty}
-                                    </div>
-                                  )}
-                                </div>
-                              </React.Fragment>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-500 italic mb-3">
-                          No faculties have been added.
-                        </div>
-                      )}
-                      <div className="border-t border-gray-200 mt-2 pt-2 flex justify-center">
-                        <button 
-                          className="text-xs text-blue-600 hover:underline"
-                          onClick={() => setExpandedCard(null)}
-                        >
-                          Show Less
-                        </button>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">All Preferred Faculty:</h4>
+                    {isCustomSlotCourse ? (
+                      <div className="text-sm text-gray-500 italic mb-3">
+                        Custom slots don't have faculty preference.
                       </div>
+                    ) : isSkippedFacultyCourse ? (
+                      <div className="text-sm text-gray-500 italic mb-3">
+                        Faculty preference not added.
+                      </div>
+                    ) : hasFacultyPreferences ? (
+                      <div className="grid grid-cols-[max-content_auto] gap-x-2 gap-y-2">
+                        {course.facultyPreferences!.map((faculty, facultyIndex) => {
+                          let labSlotsForFaculty: string | null = null;
+                          if (isLabCourse && course.facultyLabAssignments) {
+                            const assignment = course.facultyLabAssignments.find(a => a.facultyName === faculty);
+                            if (assignment && assignment.slots.length > 0) {
+                              labSlotsForFaculty = assignment.slots.join('+');
+                            }
+                          }
+                          
+                          let slotColorClass = '';
+                          if (facultyIndex > 0 && labSlotsForFaculty) {
+                            slotColorClass = checkSlotsBlocked(labSlotsForFaculty, blockedSlots) ? 'text-red-600' : 'text-green-600';
+                          }
+
+                          return (
+                            <React.Fragment key={facultyIndex}>
+                              <div className="flex items-center">
+                                <div className="flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs mr-2">
+                                  {facultyIndex + 1}
+                                </div>
+                                <div className="font-medium text-gray-700 break-words" style={{ fontSize: '14.3px' }}>{faculty}</div>
+                              </div>
+                              <div>
+                                {labSlotsForFaculty && (
+                                  <div className={`text-right text-xs font-semibold ${slotColorClass}`}>
+                                    {labSlotsForFaculty}
+                                  </div>
+                                )}
+                              </div>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500 italic mb-3">
+                        No faculties have been added.
+                      </div>
+                    )}
+                    <div className="border-t border-gray-200 mt-2 pt-2 flex justify-center">
+                      <button 
+                        className="text-xs text-blue-600 hover:underline"
+                        onClick={() => setExpandedCard(null)}
+                      >
+                        Show Less
+                      </button>
                     </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -370,7 +377,7 @@ const CourseCards: React.FC<CourseCardsProps> = ({
 
         {/* Add Course Card */}
         <button 
-          className="w-72 h-[210px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition-all"
+          className="w-full lg:w-80 h-[230px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition-all"
           onClick={onAddCourse}
         >
           <AiOutlinePlus size={32} />

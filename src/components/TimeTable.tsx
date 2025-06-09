@@ -265,7 +265,7 @@ const TimeTable: React.FC<TimeTableProps> = ({
   };
 
   return (
-    <div className={`overflow-x-auto rounded-xl`}>
+    <div className={`overflow-x-auto rounded-xl timetable-container`}>
       <table className={`min-w-full table-fixed ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <tbody className={`divide-y ${darkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
           {/* Theory Hours Row */}
@@ -287,15 +287,30 @@ const TimeTable: React.FC<TimeTableProps> = ({
             {/* Lunch column - appears only once */}
             <td 
               rowSpan={7} 
-              className={`font-semibold text-center align-middle border-r ${darkMode ? 'bg-gray-700/80 text-gray-300 border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'}`}
+              className={`font-semibold text-center align-middle ${darkMode ? 'bg-gray-700/80 text-gray-300' : 'bg-gray-50 text-gray-900'}`}
               style={{
                 width: '40px',
-                minWidth: '40px'
+                minWidth: '40px',
+                borderLeft: '1px solid #e5e7eb',
+                borderRight: '1px solid #e5e7eb',
+                background: darkMode ? 'rgba(55, 65, 81, 0.8)' : '#f9fafb',
+                position: 'relative',
+                boxShadow: 'none'
               }}
             >
-              <div className="flex flex-col items-center justify-center h-full space-y-2">
+              <div 
+                className="flex flex-col items-center justify-center h-full space-y-2"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'inherit'
+                }}
+              >
                 {'LUNCH'.split('').map((char, index) => (
-                  <span key={index}>{char}</span>
+                  <span key={index} className="relative z-10">{char}</span>
                 ))}
               </div>
             </td>

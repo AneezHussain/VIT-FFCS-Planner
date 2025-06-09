@@ -5,25 +5,24 @@ import { PALETTES } from '../utils/colorUtils';
 // Define slot conflicts here or import from a shared utility
 const slotConflictPairs = [
   // Monday conflicts
-  ['A1', 'L1'], ['F1', 'L2'], ['D1', 'L3'], ['TB1', 'L4'], ['TG1', 'L5'], ['L6', 'B1'], // B1-L6 conflict added as an example if needed
-  ['A2', 'L31'], ['F2', 'L32'], ['D2', 'L33'], ['TB2', 'L34'], ['TG2', 'L35'], ['L36', 'B2'], // B2-L36 conflict
+  ['A1', 'L1'], ['F1', 'L2'], ['D1', 'L3'], ['TB1', 'L4'], ['TG1', 'L5'],
+  ['A2', 'L31'], ['F2', 'L32'], ['D2', 'L33'], ['TB2', 'L34'], ['TG2', 'L35'],
 
   // Tuesday conflicts
-  ['B1', 'L7'], ['G1', 'L8'], ['E1', 'L9'], ['TC1', 'L10'], ['TAA1', 'L11'], ['L12', 'C1'],
-  ['B2', 'L37'], ['G2', 'L38'], ['E2', 'L39'], ['TC2', 'L40'], ['TAA2', 'L41'], ['L42', 'C2'],
+  ['B1', 'L7'], ['G1', 'L8'], ['E1', 'L9'], ['TC1', 'L10'], ['TAA1', 'L11'],
+  ['B2', 'L37'], ['G2', 'L38'], ['E2', 'L39'], ['TC2', 'L40'], ['TAA2', 'L41'],
 
   // Wednesday conflicts
-  ['C1', 'L13'], ['A1', 'L14'], ['F1', 'L15'], ['D1', 'L16'], ['TB1', 'L17'], ['L18', 'G1'],
-  ['C2', 'L43'], ['A2', 'L44'], ['F2', 'L45'], ['D2', 'L46'], ['TB2', 'L47'], ['L48', 'G2'],
+  ['C1', 'L13'], ['A1', 'L14'], ['F1', 'L15'], ['D1', 'L16'], ['TB1', 'L17'],
+  ['C2', 'L43'], ['A2', 'L44'], ['F2', 'L45'], ['D2', 'L46'], ['TB2', 'L47'],
 
   // Thursday conflicts
-  ['D1', 'L19'], ['B1', 'L20'], ['G1', 'L21'], ['E1', 'L22'], ['TC1', 'L23'], ['L24', 'A1'],
-  ['D2', 'L49'], ['B2', 'L50'], ['G2', 'L51'], ['E2', 'L52'], ['TC2', 'L53'], ['L54', 'A2'],
+  ['D1', 'L19'], ['B1', 'L20'], ['G1', 'L21'], ['E1', 'L22'], ['TC1', 'L23'],
+  ['D2', 'L49'], ['B2', 'L50'], ['G2', 'L51'], ['E2', 'L52'], ['TC2', 'L53'],
 
   // Friday conflicts
-  ['E1', 'L25'], ['C1', 'L26'], ['TA1', 'L27'], ['TF1', 'L28'], ['TD1', 'L29'], ['L30', 'F1'],
-  ['E2', 'L55'], ['C2', 'L56'], ['TA2', 'L57'], ['TF2', 'L58'], ['TDD2', 'L59'], ['L60', 'F2']
-  // Ensure all theory slots that have labs are covered, and lab slots too if they can be primary.
+  ['E1', 'L25'], ['C1', 'L26'], ['TA1', 'L27'], ['TF1', 'L28'], ['TD1', 'L29'],
+  ['E2', 'L55'], ['C2', 'L56'], ['TA2', 'L57'], ['TF2', 'L58'], ['TDD2', 'L59']
 ];
 
 const slotConflictsMap = new Map<string, string[]>();
@@ -307,7 +306,7 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
         <div className="fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm"></div>
         <div className="bg-white rounded-2xl p-6 w-[700px] max-h-[90vh] overflow-y-auto z-10 relative">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900">{editingCourse ? 'Edit Course Details' : 'Enter Course Details'}</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 break-words max-w-[80%]">{editingCourse ? 'Edit Course Details' : 'Enter Course Details'}</h2>
             <button 
               onClick={handleCloseModal}
               className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -325,8 +324,9 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
               <input
                 type="text"
                 value={courseName}
+                maxLength={34}
                 onChange={(e) => setCourseName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all"
+                className="w-full px-6 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all text-base break-words"
                 placeholder="Enter course name"
               />
             </div>
@@ -380,7 +380,7 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
                       }
                     }
                   }}
-                  className="w-full text-center border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-black focus:border-black pr-10"
+                  className="w-full text-center border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-1 focus:ring-black focus:border-black pr-10 text-base"
                   aria-label="Credits value"
                 />
                 <div className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center pr-1">
@@ -453,7 +453,7 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
                       ${selectedSlots.includes(slot)
                         ? 'bg-black text-white border border-black'
                         : isSlotTaken(slot)
-                          ? 'bg-gray-400 text-gray-600 cursor-not-allowed opacity-70 border border-gray-400'
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-70'
                           : 'bg-gray-200 text-gray-700 border border-gray-200'
                       }
                     `}
@@ -476,8 +476,8 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
                   className={`
                     px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors
                     ${courseName && selectedSlots.length > 0
-                      ? 'bg-black'
-                      : 'bg-gray-300 cursor-not-allowed'
+                      ? 'bg-black hover:bg-gray-900'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-70'
                     }
                   `}
                 >
@@ -503,8 +503,8 @@ const CourseSlotSelector: React.FC<CourseSlotSelectorProps> = ({
                   className={`
                     px-6 py-3 rounded-lg text-sm font-medium text-white transition-colors
                     ${courseName && selectedSlots.length > 0
-                      ? 'bg-black'
-                      : 'bg-gray-300 cursor-not-allowed'
+                      ? 'bg-black hover:bg-gray-900'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-70'
                     }
                   `}
                 >

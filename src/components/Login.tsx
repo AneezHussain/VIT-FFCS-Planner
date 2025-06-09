@@ -1,7 +1,5 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext'; // Corrected path
-import logo from '../media/Black White Bold Modern Clothing Brand Logo.png';
-import backgroundImage from '../media/background-image.png';
 
 // The onGoogleLogin prop might be redundant if Login component directly uses useAuth for the action.
 // However, to maintain a similar structure to App.tsx's expectation or for flexibility:
@@ -29,7 +27,7 @@ const Login: React.FC<LoginProps> = ({ onGoogleLogin }) => {
           left: 0,
           width: '50%',
           height: '100%',
-          backgroundImage: `url(${backgroundImage})`,
+          backgroundImage: 'url(/background-image.png)',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
           backgroundSize: 'cover',
@@ -42,14 +40,14 @@ const Login: React.FC<LoginProps> = ({ onGoogleLogin }) => {
           right: 0,
           width: '50%',
           height: '100%',
-          backgroundImage: `url(${backgroundImage})`,
+          backgroundImage: 'url(/background-image.png)',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
           backgroundSize: 'cover',
         }}
       />
       <div className="login-container flex items-center justify-center min-h-screen" style={{ position: 'relative', zIndex: 1 }}>
-        <div className="login-box bg-white shadow-xl rounded-lg flex overflow-hidden max-w-4xl w-full">
+        <div className="login-box bg-white shadow-xl rounded-lg flex overflow-hidden max-w-4xl w-full border-2 border-white">
           <div className="login-content p-8 md:p-12 w-full md:w-1/2 flex flex-col justify-center">
             <div className="login-form text-center">
               <h1 className="text-3xl font-bold mb-4 text-gray-800">Sign In</h1>
@@ -73,7 +71,7 @@ const Login: React.FC<LoginProps> = ({ onGoogleLogin }) => {
           </div>
           <div className="login-image hidden md:flex md:w-1/2 items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
             {/* You can use a relevant illustration for FFCS Planner */}
-            <img src={logo} alt="FFCS Planner Illustration" />
+            <img src="/logo.png" alt="FFCS Planner Illustration" />
           </div>
         </div>
       </div>
