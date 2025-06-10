@@ -365,10 +365,10 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-[4fr,1fr] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[3fr,1fr] gap-6">
           {/* Left side - Interactive TimeTable */}
-          <div className="border rounded-xl timetable-container overflow-x-auto">
-            <div className="min-w-[1000px]"> {/* Increased minimum width */}
+          <div className="border rounded-xl timetable-container">
+            <div className="w-full">
               <TimeTable 
                 courses={coursesToDisplayInTimeTable}
                 isSelectMode={true}
@@ -383,7 +383,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
           </div>
 
           {/* Right side - Course Details */}
-          <div className="border rounded-xl p-4">
+          <div className="border rounded-xl p-4 min-w-0">
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-black mb-2">

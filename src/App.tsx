@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -14,6 +14,18 @@ const AppContent: React.FC = () => {
   const exportButtonRef = useRef<HTMLButtonElement>(null);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [hideNavbar, setHideNavbar] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      (document.documentElement.style as any).zoom = '80%';
+    } else {
+      (document.documentElement.style as any).zoom = '100%';
+    }
+    // Cleanup the style when the component unmounts
+    return () => {
+      (document.documentElement.style as any).zoom = '100%';
+    };
+  }, [currentUser]);
 
   if (loading) {
     return (

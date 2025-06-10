@@ -22,18 +22,14 @@ const Login: React.FC<LoginProps> = ({ onGoogleLogin }) => {
     <div className="relative w-screen h-screen overflow-hidden">
       <img src="/favicon.png" alt="Logo" className="absolute top-4 left-4 h-8 w-auto sm:h-12 md:h-16 z-20" />
       <div
-        className="absolute top-0 left-0 w-1/2 h-full bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url(/background-image.png)' }}
-      />
-      <div
-        className="absolute top-0 right-0 w-1/2 h-full bg-cover bg-center bg-no-repeat"
+        className="absolute top-0 left-0 w-full h-full bg-cover bg-center"
         style={{ backgroundImage: 'url(/background-image.png)' }}
       />
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-        <div className="bg-white shadow-xl rounded-lg flex overflow-hidden w-[95%] max-w-4xl border-2 border-white">
+        <div className="bg-white shadow-xl rounded-lg flex overflow-hidden w-[85%] max-w-[900px] border-2 border-white transform scale-90">
           <div className="w-full md:w-1/2 p-6 sm:p-8 md:p-12 flex flex-col justify-between">
             <div className="flex-1 flex flex-col justify-center items-center">
-              <div className="w-[400px] text-center">
+              <div className="w-full max-w-sm text-center">
                 <div className="mt-16">
                   <p className="text-gray-600 text-base mb-3">Sign in to your F2CS Planner using Google</p>
                   <button 

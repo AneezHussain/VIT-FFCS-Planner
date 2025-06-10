@@ -359,7 +359,7 @@ const CourseCards: React.FC<CourseCardsProps> = ({
 
         {/* Add Course Card */}
         <button 
-          className="w-full lg:w-80 h-[230px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition-all"
+          className="w-full lg:w-80 h-[230px] border-[3px] border-dashed border-gray-300 [border-style:dashed] [border-dash:16px] rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition-all"
           onClick={onAddCourse}
         >
           <AiOutlinePlus size={32} />

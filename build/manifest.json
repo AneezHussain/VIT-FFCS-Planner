@@ -1,0 +1,16 @@
+{
+  "short_name": "F2CS Planner",
+  "name": "F2CS Planner - VIT University",
+  "description": "F2CS Planner - VIT University's FFCS planner with faculty preference sharing, timetable download, and slot blocking features. Designed to enhance mental well-being. Currently available for Vellore campus; coming soon to Chennai, AP, and Bhopal. Developed by Mohammed Aneez R",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+} 
