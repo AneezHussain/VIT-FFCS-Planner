@@ -381,7 +381,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
       <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm"></div>
-      <div className="bg-white rounded-2xl p-6 w-[90vw] max-w-[1600px] z-10 relative transform scale-70 origin-center">
+      <div className="bg-white rounded-2xl p-6 w-[99.5vw] max-w-[3000px] z-10 relative transform scale-70 origin-center">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-semibold text-gray-900">{editingCourse ? 'Edit Course Slots' : 'Select Course Slots'}</h2>
@@ -389,7 +389,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 translate-y-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-black text-sm ml-1">Choose slots by clicking on Time Table Cells</span>
+              <span className="text-black text-sm ml-1">Choose slots by clicking on Time Table Cells.</span>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-red-500 transition-colors">
@@ -397,13 +397,13 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-[4fr,1fr] gap-6">
+        <div className="grid grid-cols-[4.2fr,1fr] gap-8">
           {/* Left side - Interactive TimeTable */}
           <div 
             ref={timetableContainerRef}
             className={`border rounded-xl timetable-container ${isTimetableOverflowing ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
           >
-            <div className="min-w-[1000px]"> {/* Increased minimum width */}
+            <div className="min-w-[1200px]"> {/* Increased minimum width */}
               <TimeTable 
                 courses={coursesToDisplayInTimeTable}
                 isSelectMode={true}
@@ -418,7 +418,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
           </div>
 
           {/* Right side - Course Details */}
-          <div className="border rounded-xl p-4">
+          <div className="border border-gray-300 rounded-xl p-6"> {/* Increased padding */}
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -428,22 +428,22 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                   type="text"
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}
-                  className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-all"
+                  className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-1 focus:ring-black focus:border-black transition-all"
                   placeholder="Enter course name"
                 />
               </div>
 
               <div>
                 <label htmlFor="slot-input-tts" className="block text-sm font-medium text-gray-700 mb-2">
-                  Selected Slots (e.g., A1+F1+TC1)
+                  Selected Slots (e.g., A1+TA1=TAA1)
                 </label>
                 <input
                   id="slot-input-tts"
                   type="text"
                   value={slotInputString}
                   onChange={handleSlotInputChange}
-                  className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-all"
-                  placeholder="Type slots like A1+F1 or click timetable"
+                  className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-1 focus:ring-black focus:border-black transition-all"
+                  placeholder="Type slots or click cells"
                 />
               </div>
 
@@ -485,7 +485,7 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                         }
                       }
                     }}
-                    className="w-full text-center text-lg border-2 border-gray-300 rounded-lg py-3 px-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-black pr-10"
+                    className="w-full text-center text-base border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-black focus:border-black pr-10"
                     aria-label="Credits value"
                   />
                   <div className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center pr-2">
