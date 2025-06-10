@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { IoClose } from 'react-icons/io5';
+import { useFloating, offset, flip, shift, arrow } from '@floating-ui/react-dom';
 import TimeTable from './TimeTable';
 import { getColorClass, PALETTES } from '../utils/colorUtils';
 
@@ -46,10 +47,28 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [showSlotPopup, setShowSlotPopup] = useState(false);
-  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [availableSlotsForCell, setAvailableSlotsForCell] = useState<string[]>([]);
   const [isPopupHovered, setIsPopupHovered] = useState(false);
   const [slotInputString, setSlotInputString] = useState('');
+  const [isTimetableOverflowing, setIsTimetableOverflowing] = useState(false);
+  const timetableContainerRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<HTMLDivElement>(null);
+
+  const {
+    x,
+    y,
+    strategy,
+    refs,
+    middlewareData: { arrow: { x: arrowX, y: arrowY } = {} },
+  } = useFloating({
+    placement: 'top',
+    middleware: [
+      offset(-15),
+      flip(),
+      shift({ padding: 8 }),
+      arrow({ element: arrowRef })
+    ],
+  });
 
   // Derive all existing slot strings from otherCoursesData
   const allExistingSlots = useMemo(() => {
@@ -69,6 +88,25 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
       return [...accSlots, ...slotsForThisCourse];
     }, []);
   }, [otherCoursesData]);
+
+  useEffect(() => {
+    const container = timetableContainerRef.current;
+    if (!isOpen || !container) return;
+
+    const observer = new ResizeObserver(() => {
+      const isOverflowing = container.scrollWidth > container.clientWidth;
+      setIsTimetableOverflowing(isOverflowing);
+    });
+
+    observer.observe(container);
+    // Initial check
+    const isOverflowing = container.scrollWidth > container.clientWidth;
+    setIsTimetableOverflowing(isOverflowing);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isOpen]);
 
   // Helper function to find a conflicting partner
   const getConflictingPartner = useCallback((slot: string): string | undefined => {
@@ -173,9 +211,9 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
     }
     
     const slotsAvailableForNewSelection = interactableSlotsInCell.filter(slot => {
-        const partner = getConflictingPartner(slot);
-        if (partner && selectedSlots.includes(partner)) return false; 
-        return true;
+      const partner = getConflictingPartner(slot);
+      if (partner && selectedSlots.includes(partner)) return false; 
+      return true;
     });
 
     if (slotsAvailableForNewSelection.length === 0) {
@@ -193,11 +231,9 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
         setSlotInputString(newSelectedSlots.join('+'));
       }
     } else { 
-      const rect = event.currentTarget.getBoundingClientRect();
-      setPopupPosition({
-        x: rect.left + window.scrollX,
-        y: rect.top + window.scrollY
-      });
+      if (refs.setReference && event.currentTarget) {
+        refs.setReference(event.currentTarget);
+      }
       setAvailableSlotsForCell(slotsAvailableForNewSelection);
       setSelectedCell(cellSlots);
       setShowSlotPopup(true);
@@ -345,19 +381,15 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
       <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm"></div>
-      <div className="bg-white rounded-2xl p-6 w-[90vw] max-w-[1600px] z-10 relative">
+      <div className="bg-white rounded-2xl p-6 w-[90vw] max-w-[1600px] z-10 relative transform scale-70 origin-center">
         <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center">
+          <div className="flex items-center gap-4">
             <h2 className="text-2xl font-semibold text-gray-900">{editingCourse ? 'Edit Course Slots' : 'Select Course Slots'}</h2>
-            <div className="ml-4 flex items-center translate-y-[2px]">
-              <div className="flex items-center">
-                <button className="text-black hover:text-gray-600 transition-colors flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 translate-y-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </button>
-                <span className="text-black text-sm ml-1">Choose slots by clicking on Time Table Cells</span>
-              </div>
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 translate-y-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-black text-sm ml-1">Choose slots by clicking on Time Table Cells</span>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-red-500 transition-colors">
@@ -365,10 +397,13 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[3fr,1fr] gap-6">
+        <div className="grid grid-cols-[4fr,1fr] gap-6">
           {/* Left side - Interactive TimeTable */}
-          <div className="border rounded-xl timetable-container">
-            <div className="w-full">
+          <div 
+            ref={timetableContainerRef}
+            className={`border rounded-xl timetable-container ${isTimetableOverflowing ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
+          >
+            <div className="min-w-[1000px]"> {/* Increased minimum width */}
               <TimeTable 
                 courses={coursesToDisplayInTimeTable}
                 isSelectMode={true}
@@ -383,33 +418,32 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
           </div>
 
           {/* Right side - Course Details */}
-          <div className="border rounded-xl p-4 min-w-0">
+          <div className="border rounded-xl p-4">
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-black mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Course Name
                 </label>
                 <input
                   type="text"
                   value={courseName}
-                  maxLength={34}
                   onChange={(e) => setCourseName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-black focus:border-black transition-all text-black"
+                  className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-all"
                   placeholder="Enter course name"
                 />
               </div>
 
               <div>
-                <label htmlFor="slot-input-tts" className="block text-sm font-medium text-black mb-2">
-                  Selected Slots (e.g., A1+TA1+TAA1)
+                <label htmlFor="slot-input-tts" className="block text-sm font-medium text-gray-700 mb-2">
+                  Selected Slots (e.g., A1+F1+TC1)
                 </label>
                 <input
                   id="slot-input-tts"
                   type="text"
                   value={slotInputString}
                   onChange={handleSlotInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-black focus:border-black transition-all text-black"
-                  placeholder="Type A1+TA1 or select cells"
+                  className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-all"
+                  placeholder="Type slots like A1+F1 or click timetable"
                 />
               </div>
 
@@ -451,10 +485,10 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                         }
                       }
                     }}
-                    className="w-full text-center border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-black focus:border-black pr-10"
+                    className="w-full text-center text-lg border-2 border-gray-300 rounded-lg py-3 px-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-black pr-10"
                     aria-label="Credits value"
                   />
-                  <div className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center pr-1">
+                  <div className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center pr-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -462,10 +496,10 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                         setCredits(newCredits);
                         setCreditInputString(newCredits.toString());
                       }}
-                      className="h-1/2 px-1 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-tr-md focus:outline-none"
+                      className="h-1/2 px-2 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-tr-md focus:outline-none"
                       aria-label="Increase credits"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 15l7-7 7 7" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 15l7-7 7 7" /></svg>
                     </button>
                     <button
                       type="button"
@@ -474,10 +508,10 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                         setCredits(newCredits);
                         setCreditInputString(newCredits.toString());
                       }}
-                      className="h-1/2 px-1 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-br-md focus:outline-none"
+                      className="h-1/2 px-2 text-gray-500 hover:text-gray-700 flex items-center justify-center rounded-br-md focus:outline-none"
                       aria-label="Decrease credits"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
                     </button>
                   </div>
                 </div>
@@ -487,34 +521,34 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                 onClick={handleSubmit}
                 disabled={!courseName || selectedSlots.length === 0}
                 className={`
-                  w-full px-4 py-4 rounded-lg text-base font-medium text-white transition-colors
+                  w-full px-4 py-3 rounded-lg text-base font-medium text-white transition-colors
                   ${courseName && selectedSlots.length > 0
                     ? 'bg-black hover:bg-gray-900'
                     : 'bg-gray-300 cursor-not-allowed'
                   }
                 `}
               >
-                Confirm
+                Confirm Selection
               </button>
             </div>
           </div>
         </div>
 
-        {/* Slot Selection Popup */}
+        {/* Replace the Slot Selection Popup */}
         {showSlotPopup && selectedCell && availableSlotsForCell.length > 1 && (
           <div
-            className="fixed z-20 slot-popup"
+            ref={refs.setFloating}
             style={{
-              left: `${popupPosition.x + 40}px`, 
-              top: `${popupPosition.y - 30}px`,  
-              transform: 'translateX(-50%)'      
+              position: strategy,
+              top: y ?? 0,
+              left: x ?? 0,
+              width: 'max-content',
             }}
+            className="z-20 slot-popup"
             onClick={(e) => e.stopPropagation()} 
           >
             <div 
-              className="relative bg-white rounded-lg shadow-xl border border-gray-300 p-2 hover:border-black transition-colors"
-              onMouseEnter={() => setIsPopupHovered(true)}
-              onMouseLeave={() => setIsPopupHovered(false)}
+              className="relative bg-white rounded-lg shadow-xl border border-gray-300 p-2"
             >
               <div className="flex flex-row items-center gap-1">
                 {availableSlotsForCell.map((slot, index) => (
@@ -522,10 +556,10 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                     <button
                       onClick={() => handleSlotSelectFromPopup(slot)}
                       className={`
-                        px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-left whitespace-nowrap
+                        px-3 py-1.5 text-sm font-medium rounded-md text-left whitespace-nowrap
                         ${selectedSlots.includes(slot)
                           ? 'bg-blue-100 text-blue-800'
-                          : 'hover:bg-gray-100'
+                          : 'hover:bg-gray-700 hover:text-white'
                         }
                       `}
                     >
@@ -538,27 +572,23 @@ const TimeTableSlotSelector: React.FC<TimeTableSlotSelectorProps> = ({
                 ))}
               </div>
 
-              {/* Speech bubble tail */}
+              {/* Arrow pointing down */}
               <div
-                className="absolute w-0 h-0"
+                ref={arrowRef}
+                className="absolute left-1/2 -translate-x-1/2 w-0 h-0"
                 style={{
-                  bottom: '-15px', 
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  borderLeft: '10px solid transparent', 
-                  borderRight: '10px solid transparent',
-                  borderTop: `15px solid ${isPopupHovered ? 'black' : '#D1D5DB'}`,
-                  transition: 'border-top-color 0.15s ease-in-out'
+                  top: '100%',
+                  borderLeft: '15px solid transparent',
+                  borderRight: '15px solid transparent',
+                  borderTop: '15px solid #D1D5DB',
                 }}
               />
               <div
-                className="absolute w-0 h-0"
+                className="absolute left-1/2 -translate-x-1/2 w-0 h-0"
                 style={{
-                  bottom: '-14px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  borderLeft: '9px solid transparent',
-                  borderRight: '9px solid transparent',
+                  top: 'calc(100% - 1px)',
+                  borderLeft: '14px solid transparent',
+                  borderRight: '14px solid transparent',
                   borderTop: '14px solid white',
                 }}
               />
